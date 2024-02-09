@@ -833,7 +833,7 @@ public class Player : Actor, IHaveModels, IHaveSprites, IRidePlatforms, ICastPoi
 		}
 	}
 
-	public void Kill()
+	public virtual void Kill()
 	{
 		stateMachine.State = States.Dead;
 		storedCameraForward = cameraTargetForward;

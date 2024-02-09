@@ -66,6 +66,9 @@ public class Game : Module
 	{
 		// If this isn't stored, the delegate will get GC'd and everything will crash :)
 		audioEventCallback = MusicTimelineCallback;
+        
+        var romBytes = File.ReadAllBytes("sm64.z64");
+        var ctx = libsm64sharp.Sm64Context.InitFromRom(romBytes);
 	}
 
 	public override void Startup()

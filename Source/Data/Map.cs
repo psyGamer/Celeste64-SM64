@@ -321,7 +321,8 @@ public class Map
 				(!checkpoints.Contains(world.Entry.CheckPoint) && name == StartCheckpoint);
 
 			if (spawnsPlayer)
-				HandleActorCreation(world, entity, new Player(), null);
+				// HandleActorCreation(world, entity, new Player(), null);
+                HandleActorCreation(world, entity, new SM64Player(), null);
 
 			if (name != StartCheckpoint)
 				HandleActorCreation(world, entity, new Checkpoint(name), null);
