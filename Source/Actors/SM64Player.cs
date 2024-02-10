@@ -7,13 +7,93 @@ namespace Celeste64;
 
 public class SM64Player : Player
 {
-    public SM64Player()
+    /// <summary>
+    /// A single unit in SM64 and C64 are different sizes.
+    /// This constant transforms a SM64 unit into a C64 one.
+    /// </summary>
+    private const float UnitScaleFactor = 0.1f;
+    
+    private class MarioModel : Model
     {
-       
-    }
+        private readonly Texture Texture;
+        private readonly Mesh Mesh = new();
+        private readonly ISm64Mario Mario;
+        
+        public MarioModel(ISm64Mario mario)
+        {
+            Mario = mario;
 
-    ISm64Context Context;
-    ISm64Mario Mario;
+            Materials.Add(new DefaultMaterial());
+            Flags = ModelFlags.Default;             
+            
+            // unsafe
+            // {
+            //     MarioMesh.Texture.DangerousTryGetSinglePixelMemory(out var textureMemory);
+            //     using var pinHandle = textureMemory.Pin();
+            //     Texture = new Texture((IntPtr)pinHandle.Pointer, MarioMesh.Texture.Width, MarioMesh.Texture.Height, TextureFormat.R8G8B8A8);
+            // }
+            Texture = Assets.Textures["white"];
+        }
+        
+        ~MarioModel()
+        {
+            // Mesh.Dispose();
+            // Materials.ForEach(mat => mat.Texture?.Dispose());
+        }
+        
+        public override void Render(ref RenderState state)
+        {
+            Log.Info(Mario.Mesh.TriangleData);
+            Log.Info(Mario.Mesh.TriangleData == null);
+            Log.Info(Mario.Mesh.TriangleData.TriangleCount.ToString());
+            
+            if (Mario.Mesh.TriangleData is not { } data) return;
+        
+            List<Vertex> vertices = [];
+            List<int> indices = [];
+            
+            for (int i = 0; i < data.TriangleCount * 3; i++)
+            {
+                vertices.Add(new Vertex(data.Positions[i].ToVec3(), data.Uvs[i].ToVec2(), data.Colors[i].ToVec3(), data.Normals[i].ToVec3()));
+                indices.Add(i);
+            }
+
+            Mesh.SetVertices<Vertex>(CollectionsMarshal.AsSpan(vertices));
+            Mesh.SetIndices<int>(CollectionsMarshal.AsSpan(indices));
+            
+            
+            //
+            
+            foreach (var mat in Materials)
+            {
+                state.ApplyToMaterial(mat, Matrix.Identity);
+            
+                if (mat.Shader != null &&
+                    mat.Shader.Has("u_jointMult"))
+                    mat.Set("u_jointMult", 0.0f);
+                mat.Texture = Texture;
+                mat.Model = Matrix.CreateTranslation(-Mario.Position.ToVec3()) * Matrix.CreateScale(UnitScaleFactor) * Matrix.CreateTranslation(Mario.Position.ToVec3() * UnitScaleFactor);
+                mat.MVP = mat.Model * state.Camera.ViewProjection;
+            }
+            
+            var call = new DrawCommand(state.Camera.Target, Mesh, Materials[0])
+            {
+                DepthCompare = state.DepthCompare,
+                DepthMask = state.DepthMask,
+                CullMode = CullMode.None,
+                MeshIndexStart = 0,
+                MeshIndexCount = data.TriangleCount * 3,
+            };
+            call.Submit();
+            state.Calls++;
+            state.Triangles += data.TriangleCount * 3;
+        }
+    } 
+    
+    private ISm64Context Context;
+    private ISm64Mario Mario;
+    
+    private MarioModel Model;
     
     public override void Added()
     {
@@ -26,6 +106,7 @@ public class SM64Player : Player
         LibSm64Interop.sm64_static_surfaces_load(Data.surfaces, (ulong)Data.surfaces.Length);
         // int marioId = LibSm64Interop.sm64_mario_create(0, 1000, 0);
         Mario = Context.CreateMario(0, 1000, 0);
+        Model = new MarioModel(Mario);
         
         Log.Info($"Mario ID: {Mario}");
         
@@ -67,15 +148,20 @@ public class SM64Player : Player
 
         Position = Position with
         {
-            X = Mario.Position.X,
-            Y = Mario.Position.Z,
+            X = Mario.Position.X * UnitScaleFactor,
+            Y = Mario.Position.Z * UnitScaleFactor,
 
-            Z = Mario.Position.Y,
+            Z = Mario.Position.Y * UnitScaleFactor,
         };
     }
-
+    
     public override void Kill()
     {
         // no.
+    }
+
+    public override void CollectModels(List<(Actor Actor, Model Model)> populate)
+    {
+        populate.Add((this, Model));
     }
 }
