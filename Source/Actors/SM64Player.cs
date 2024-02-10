@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 using LibSM64Sharp;
 using LibSM64Sharp.Impl;
 using LibSM64Sharp.LowLevel;
+using MonoMod.Cil;
+using MonoMod.RuntimeDetour;
 
 namespace Celeste64.Mod.SuperMario64;
 
@@ -93,10 +95,52 @@ public class SM64Player : Player
             state.Calls++;
             state.Triangles += data.TriangleCount * 3;
         }
-    } 
+    }
+    
+    // private static ILHook? il_Player_LateUpdate;
+    
+    internal static void Load()
+    {
+        // il_Player_LateUpdate = new ILHook(typeof(Player).GetMethod("LateUpdate")!, IL_Player_LateUpdate);
+    }
+    internal static void Unload()
+    {
+        // il_Player_LateUpdate?.Dispose();
+    }
+    
+    /// <summary>
+    /// Removes the easing from the camera
+    /// </summary>
+    private static void IL_Player_LateUpdate(ILContext il)
+    {
+        var cur = new ILCursor(il);
+        // Goto: GetCameraTarget()
+        cur.GotoNext(instr => instr.MatchCallvirt<Player>("GetCameraTarget"));
+        // Get the cameraPosition out variable
+        int cameraPositionIdx = -1;
+        cur.GotoPrev(instr => instr.MatchLdloca(out _)); // bool snapRequested
+        cur.GotoPrev(instr => instr.MatchLdloca(out cameraPositionIdx));
+        
+        // Goto before: this.World.Camera.LookAt = cameraLookAt;
+        cur.GotoNext(instr => instr.MatchCall<Actor>("get_World"));
+        cur.GotoNext(instr => instr.MatchCall<Actor>("get_World"));
+        cur.GotoNext(instr => instr.MatchCall<Actor>("get_World"));
+        
+        cur.EmitLdarg0();
+        cur.EmitLdloc(il.Body.Variables[cameraPositionIdx]);
+        cur.EmitDelegate(SetCamera);
+        
+        static void SetCamera(Player self, Vec3 cameraPosition)
+        {
+            self.World.Camera.Position = cameraPosition;
+        }
+
+        Console.WriteLine(il);
+    }
+
     
     private ISm64Context Context = null!;
-    private ISm64Mario Mario = null!;
+    private ISm64Mario? Mario = null;
     
     private MarioModel MarioPlayerModel = null!;
     
@@ -104,7 +148,9 @@ public class SM64Player : Player
     /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
     /// </summary>
     private bool IsOddFrame = false;
-    
+
+    public override Vec3 Position => Mario != null ? Mario.Position.ToVec3() * UnitScaleFactor : position;
+
     public override void Added()
     {
         base.Added();
@@ -141,7 +187,7 @@ public class SM64Player : Player
     {
         base.Destroyed();
 
-        Mario.Dispose();
+        Mario?.Dispose();
         Context.Dispose();
     }
 
@@ -149,7 +195,7 @@ public class SM64Player : Player
     {
         base.Update();
      
-        Mario.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
+        Mario!.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
         Mario.Gamepad.AnalogStick.Y = Controls.Move.Value.Y;
         Mario.Gamepad.IsAButtonDown = Controls.Jump.Down;
         Mario.Gamepad.IsBButtonDown = Controls.Dash.Down;
@@ -160,21 +206,22 @@ public class SM64Player : Player
         Mario.Gamepad.CameraNormal.Y = cameraLookAt.Y - cameraPosition.Y;
         
         if (IsOddFrame)
+        {
             Mario.Tick();
+        } 
         IsOddFrame = !IsOddFrame;
         
         // Log.Info($"Pos: {Mario.Position.X} {Mario.Position.Y} {Mario.Position.Z}");
         // Log.Info($"Vel: {Mario.Velocity.X} {Mario.Velocity.Y} {Mario.Velocity.Z}");
-
-        Position = Position with
-        {
-            X = Mario.Position.X * UnitScaleFactor,
-            Y = Mario.Position.Z * UnitScaleFactor,
-
-            Z = Mario.Position.Y * UnitScaleFactor,
-        };
     }
-    
+
+    // public override void GetCameraTarget(out Vector3 cameraLookAt, out Vector3 cameraPosition, out bool snapRequested)
+    // {
+    //     cameraLookAt = Position;
+    //     cameraPosition = Position + new Vec3(10, 10, 10);
+    //     snapRequested = false;
+    // }
+
     public override void Kill()
     {
         // no.

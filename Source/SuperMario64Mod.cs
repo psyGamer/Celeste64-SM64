@@ -5,6 +5,16 @@ namespace Celeste64.Mod.SuperMario64;
 
 public class SuperMario64Mod : GameMod
 {
+    public override void OnModLoaded()
+    {
+        SM64Player.Load();
+    }
+
+    public override void OnModUnloaded()
+    {
+        SM64Player.Unload();
+    }
+    
     public override void OnPreMapLoaded(World world, Map map)
     {
         AddActorFactory("PlayerSpawn", new Map.ActorFactory((map, entity) =>
@@ -27,9 +37,5 @@ public class SuperMario64Mod : GameMod
             
             return null;
         }));
-    }
-
-    public override void OnModUnloaded()
-    {
     }
 }
