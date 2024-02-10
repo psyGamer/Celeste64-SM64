@@ -5,6 +5,7 @@ using LibSM64Sharp.Impl;
 using LibSM64Sharp.LowLevel;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
+using Thread = System.Threading.Thread;
 
 namespace Celeste64.Mod.SuperMario64;
 
@@ -41,7 +42,9 @@ public class SM64Player : Player
             if (Material.Shader != null && Material.Shader.Has("u_jointMult"))
                 Material.Set("u_jointMult", 0.0f);
 
-            Flags = ModelFlags.Default;             
+            Flags = ModelFlags.Default;
+            
+            queue.Clear();
             
             // unsafe
             // {
@@ -103,13 +106,46 @@ public class SM64Player : Player
     
     // private static ILHook? il_Player_LateUpdate;
     
+    private static Thread? threadHandle;
+    private static bool runThread;
+    
     internal static void Load()
     {
         // il_Player_LateUpdate = new ILHook(typeof(Player).GetMethod("LateUpdate")!, IL_Player_LateUpdate);
+        runThread = true;
+        threadHandle = new Thread(CaptureThread);
+        threadHandle.Start();
     }
     internal static void Unload()
     {
         // il_Player_LateUpdate?.Dispose();
+        runThread = false;
+        threadHandle?.Join();
+        threadHandle = null;
+
+    }
+    
+    private static unsafe void CaptureThread()
+    {
+        while (runThread)
+        {
+            if (instance is not { } p || !p.active) continue;
+
+            var buffer = new short[544*2*2];
+            fixed (short* pBuf = buffer)
+            {
+                if (queue.Count < 12000)
+                {
+                    uint writtenSamples = LibSm64Interop.sm64_audio_tick((uint)queue.Count, (uint)buffer.Length, (IntPtr)pBuf);
+                    for (uint i = 0; i < writtenSamples*2*2; i += 1)
+                    {
+                        queue.Enqueue(buffer[i]);
+                    }
+                }
+            }
+            
+            Thread.Sleep(33);
+        }
     }
     
     /// <summary>
@@ -142,6 +178,9 @@ public class SM64Player : Player
         Console.WriteLine(il);
     }
 
+    private static SM64Player? instance = null;
+    
+    private bool active;
     
     private ISm64Context Context = null!;
     private ISm64Mario? Mario = null;
@@ -167,6 +206,7 @@ public class SM64Player : Player
     public override void Added()
     {
         base.Added();
+        instance = this;
         
         var romBytes = File.ReadAllBytes("sm64.z64");
         
@@ -234,30 +274,36 @@ public class SM64Player : Player
         MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
         Log.Info($"Mario ID: {Mario}");
         
-        unsafe
-        {
-            fixed (byte* pBuffer = AudioBuffer)
-            {
-                generatePCMData((short*)pBuffer, NumChannels);
-            }
-        }
+        // unsafe
+        // {
+        //     fixed (byte* pBuffer = AudioBuffer)
+        //     {
+        //         generatePCMData((short*)pBuffer, NumChannels);
+        //     }
+        // }
         
         Log.Info("A");
         Audio.Check(Audio.system.getCoreSystem(out var coreSystem));
         CREATESOUNDEXINFO exinfo = default;
         exinfo.cbsize = Marshal.SizeOf(typeof(CREATESOUNDEXINFO));
         exinfo.numchannels = NumChannels;
-        exinfo.decodebuffersize = AudioBufferSize;
+        exinfo.decodebuffersize = SampleRate/8;//AudioBufferSize;
+        exinfo.decodebuffersize = (uint)(544*2*Marshal.SizeOf<short>());
         exinfo.format = SOUND_FORMAT.PCM16;
         exinfo.defaultfrequency = SampleRate;
         exinfo.pcmreadcallback = pcmreadcallback;
-        exinfo.length = (uint)(SampleRate * Marshal.SizeOf<short>());
+        exinfo.length = (uint)(SampleRate * NumChannels * Marshal.SizeOf<short>());
+        exinfo.length = (uint)(544*2*2*Marshal.SizeOf<short>());
         
         Log.Info("B");
-        Audio.Check(coreSystem.createSound(0, MODE.OPENUSER | MODE.LOOP_NORMAL | MODE.CREATESTREAM, ref exinfo, out sn));
+        Audio.Check(coreSystem.createStream("haiii", MODE.OPENUSER | MODE.LOOP_NORMAL, ref exinfo, out sn));
         // coreSystem.getMasterChannelGroup(out var channelGroup);
+        // coreSystem.setStreamBufferSize(65536, TIMEUNIT.RAWBYTES);
+        
         Log.Info("C");
         Audio.Check(coreSystem.playSound(sn, new ChannelGroup(0), false, out ch));
+        
+        active = true;
     }
     
     // Function to generate PCM data
@@ -270,13 +316,20 @@ public class SM64Player : Player
         }
     }
     
+    static Queue<short> queue = new();
+    
+    static int samplesElapsed = 0;
     static float  t1 = 0, t2 = 0;        // time
     static float  v1 = 0, v2 = 0;        // velocity
-    private static unsafe RESULT pcmreadcallback(IntPtr sound, IntPtr data, uint datalen)
+    private static unsafe RESULT pcmreadcallback(IntPtr sound, IntPtr data, uint length)
     {
-        Log.Info($"CALLBACK: {(nint)sound} {(nint)data} {datalen}");
+        //Log.Info($"CALLBACK: {(nint)sound} {(nint)data} {length} | Queue: {queue.Count}");
+
+        // if (instance is not { } p || !p.active || length < 544*2*2*Marshal.SizeOf<short>()) return RESULT.OK;
         
-        short *stereo16bitbuffer = (short*)data;
+        // LibSm64Interop.sm64_audio_tick((uint)(544*2*2*Marshal.SizeOf<short>()-length), length, data);
+        
+        // short *stereo16bitbuffer = (short*)data;
 
         // for (uint count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
         // {
@@ -288,9 +341,63 @@ public class SM64Player : Player
         //     v1 += (float)(MathF.Sin(t1) * 0.002f);
         //     v2 += (float)(MathF.Sin(t2) * 0.002f);
         // }
+	
+        // A 2-channel 16-bit stereo stream uses 4 bytes per sample
+        // for (uint sample = 0; sample < length / 4; sample++)
+        // {
+        //     // Get the position in the sample
+        //     double pos = (float)(800 * samplesElapsed) / SampleRate;
+        //
+        //     // The generator function returns a value from -1 to 1 so we multiply this by the
+        //     // maximum possible volume of a 16-bit PCM sample (32767) to get the true volume to store
+        //
+        //     // Generate a sample for the left channel
+        //     *stereo16bitbuffer++ = (short)(Math.Sin(pos * Math.PI*2) * 32767.0f * 0.3f);
+        //
+        //     // Generate a sample for the right channel
+        //     *stereo16bitbuffer++ = (short)(Math.Sin(pos * Math.PI*2) * 32767.0f * 0.3f);
+        //
+        //     // Increment number of samples generated
+        //     samplesElapsed++;
+        // }
         
-        NativeMemory.Fill((void*)data, datalen, 0);
-        LibSm64Interop.sm64_audio_tick(0, datalen, data);
+        // uint position = 0;
+        // if (instance is { } p)
+        //     p.ch.getPosition(out position, TIMEUNIT.PCM);
+        // Log.Info($"New: {position}");
+        // if (instance is { } p2)
+        //     p2.ch.getPosition(out position, TIMEUNIT.MS);
+        // Log.Info($"New:MS {position}");
+        
+        // if (instance is {} p)
+        // {
+        //     NativeMemory.Fill((void*)data, length, 0);
+        //     
+        //     var buffer = new short[544*2*2];
+        //     fixed (short* pBuf = buffer)
+        //     {
+        //         
+        //         if (queue.Count < 1000)
+        //         {
+        //         uint writtenSamples = LibSm64Interop.sm64_audio_tick((uint)queue.Count, (uint)buffer.Length, (IntPtr)pBuf);
+        //             for (uint i = 0; i < writtenSamples*2*2; i += 1)
+        //             {
+        //                 queue.Enqueue(buffer[i]);
+        //             }
+        //         }
+        //     } 
+        // }
+        
+        for (int i = 0; i < length; i += Marshal.SizeOf<short>())
+        {
+            if (!queue.TryDequeue(out short sample))
+                sample = 0;
+            *(short*)(data + i) = sample;
+        }
+        
+        //
+        // NativeMemory.Fill((void*)data, datalen, 0);
+        // LibSm64Interop.sm64_audio_tick(0, datalen, data);
 
         return RESULT.OK;
     }
@@ -298,13 +405,20 @@ public class SM64Player : Player
 
     public override void Destroyed()
     {
+        active = false;
+        
         base.Destroyed();
+        
+        Log.Info("DESTROYED!!!");
 
-        sn.release();
-        ch.stop();
+        Audio.Check(sn.release());
+        // Audio.Check(ch.stop());
         
         Mario?.Dispose();
         Context.Dispose();
+        
+        if (instance == this)
+            instance = null;
     }
 
     public override void Update()
@@ -313,7 +427,7 @@ public class SM64Player : Player
         
         Audio.Check(ch.getPosition(out uint fpos, TIMEUNIT.MS));
         Audio.Check(sn.getLength(out uint flen, TIMEUNIT.MS));
-        Log.Info($"Channel: {fpos} / {flen} | ({ch.handle}) ({sn.handle})");
+        // Log.Info($"Channel: {fpos} / {flen} | ({ch.handle}) ({sn.handle})");
         
         Mario.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
         Mario.Gamepad.AnalogStick.Y = Controls.Move.Value.Y;
