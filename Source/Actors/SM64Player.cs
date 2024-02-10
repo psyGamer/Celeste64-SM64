@@ -149,9 +149,9 @@ public class SM64Player : Player
     private MarioModel MarioPlayerModel = null!;
     
     private const int NumChannels = 2;
-    private const int AudioBufferSize = 544 * 2 * NumChannels;
-    private const int SampleRate = 44100;
-    private byte[] AudioBuffer = new byte[AudioBufferSize*2];
+    private const int AudioBufferSize = 512 * NumChannels;
+    private const int SampleRate = 32000;
+    private byte[] AudioBuffer = new byte[544*2*2];
     
     /// <summary>
     /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
@@ -250,8 +250,8 @@ public class SM64Player : Player
         exinfo.decodebuffersize = AudioBufferSize;
         exinfo.format = SOUND_FORMAT.PCM16;
         exinfo.defaultfrequency = SampleRate;
-        exinfo.pcmreadcallback = PCMREADCALLBACK;
-        exinfo.length = SampleRate*2*4;
+        exinfo.pcmreadcallback = pcmreadcallback;
+        exinfo.length = (uint)(SampleRate * Marshal.SizeOf<short>());
         
         Log.Info("B");
         Audio.Check(coreSystem.createSound(0, MODE.OPENUSER | MODE.LOOP_NORMAL | MODE.CREATESTREAM, ref exinfo, out sn));
@@ -270,12 +270,6 @@ public class SM64Player : Player
         }
     }
     
-    private static unsafe RESULT PCMREADCALLBACK(IntPtr sound, IntPtr data, uint datalen)
-    {
-        generatePCMData((short*)data, (int)(datalen / sizeof(short) / NumChannels));
-        return RESULT.OK;
-    }
-    
     static float  t1 = 0, t2 = 0;        // time
     static float  v1 = 0, v2 = 0;        // velocity
     private static unsafe RESULT pcmreadcallback(IntPtr sound, IntPtr data, uint datalen)
@@ -284,16 +278,19 @@ public class SM64Player : Player
         
         short *stereo16bitbuffer = (short*)data;
 
-        for (uint count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
-        {
-            *stereo16bitbuffer++ = (short)(MathF.Sin(t1) * 32767.0f);    // left channel
-            *stereo16bitbuffer++ = (short)(MathF.Sin(t2) * 32767.0f);    // right channel
-
-            t1 += 0.01f   + v1;
-            t2 += 0.0142f + v2;
-            v1 += (float)(MathF.Sin(t1) * 0.002f);
-            v2 += (float)(MathF.Sin(t2) * 0.002f);
-        }
+        // for (uint count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+        // {
+        //     *stereo16bitbuffer++ = (short)(MathF.Sin(t1) * 32767.0f);    // left channel
+        //     *stereo16bitbuffer++ = (short)(MathF.Sin(t2) * 32767.0f);    // right channel
+        //
+        //     t1 += 0.01f   + v1;
+        //     t2 += 0.0142f + v2;
+        //     v1 += (float)(MathF.Sin(t1) * 0.002f);
+        //     v2 += (float)(MathF.Sin(t2) * 0.002f);
+        // }
+        
+        NativeMemory.Fill((void*)data, datalen, 0);
+        LibSm64Interop.sm64_audio_tick(0, datalen, data);
 
         return RESULT.OK;
     }
