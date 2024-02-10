@@ -1,5 +1,5 @@
-using libsm64sharp;
-using libsm64sharp.lowlevel;
+using LibSM64Sharp;
+using LibSM64Sharp.LowLevel;
 
 namespace Celeste64;
 

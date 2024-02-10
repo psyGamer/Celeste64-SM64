@@ -1,16 +1,19 @@
-﻿namespace libsm64sharp {
-  public interface ISm64Triangle {
+﻿namespace LibSM64Sharp;
+
+public interface ISm64Triangle
+{
     Sm64SurfaceType SurfaceType { get; }
     Sm64TerrainType TerrainType { get; }
 
     IReadOnlyList<IReadOnlySm64Vector3<int>> Vertices { get; }
-  }
+}
 
-  /// <summary>
-  ///   The surface types from libsm64's decomp:
-  ///   https://github.com/libsm64/libsm64/blob/fcb6b5b431b5776a55d0ca6b60dbd937ed1f4562/src/decomp/include/surface_terrains.h#L4-L151
-  /// </summary>
-  public enum Sm64SurfaceType : short {
+/// <summary>
+///   The surface types from libsm64's decomp:
+///   https://github.com/libsm64/libsm64/blob/fcb6b5b431b5776a55d0ca6b60dbd937ed1f4562/src/decomp/include/surface_terrains.h#L4-L151
+/// </summary>
+public enum Sm64SurfaceType : short
+{
     SURFACE_DEFAULT = 0x0000, // Environment default
 
     SURFACE_BURNING =
@@ -236,13 +239,14 @@
     SURFACE_PAINTING_WARP_FC = 0x00FC, // Painting warp (THI Tiny - Right)
     SURFACE_WOBBLING_WARP = 0x00FD, // Pool warp (HMC & DDD)
     SURFACE_TRAPDOOR = 0x00FF, // Bowser Left trapdoor, has no action defined
-  }
+}
 
-  /// <summary>
-  ///   The terrain types from libsm64's decomp:
-  ///   https://github.com/libsm64/libsm64/blob/fcb6b5b431b5776a55d0ca6b60dbd937ed1f4562/src/decomp/include/surface_terrains.h#L178-L186
-  /// </summary>
-  public enum Sm64TerrainType : ushort {
+/// <summary>
+///   The terrain types from libsm64's decomp:
+///   https://github.com/libsm64/libsm64/blob/fcb6b5b431b5776a55d0ca6b60dbd937ed1f4562/src/decomp/include/surface_terrains.h#L178-L186
+/// </summary>
+public enum Sm64TerrainType : ushort
+{
     TERRAIN_GRASS = 0x0000,
     TERRAIN_STONE = 0x0001,
     TERRAIN_SNOW = 0x0002,
@@ -251,5 +255,4 @@
     TERRAIN_WATER = 0x0005,
     TERRAIN_SLIDE = 0x0006,
     TERRAIN_MASK = 0x0007,
-  }
 }

@@ -1,5 +1,7 @@
-﻿namespace libsm64sharp {
-  public enum Sm64SoundId : ushort {
+﻿namespace LibSM64Sharp;
+
+public enum Sm64SoundId : ushort
+{
     TERRAIN_JUMP_DEFAULT = 0x0000,
     TERRAIN_JUMP_GRASS = 0x0001,
     TERRAIN_JUMP_WATER = 0x0002,
@@ -28,5 +30,4 @@
     TERRAIN_STEP_SAND = 0x0017,
 
     // TODO: Add the rest of the sounds
-  }
 }

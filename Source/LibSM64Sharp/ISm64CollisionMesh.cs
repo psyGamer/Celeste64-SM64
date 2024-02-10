@@ -1,7 +1,9 @@
-﻿namespace libsm64sharp {
-  public interface ISm64CollisionMeshBuilder<out TSelf, out TBuildType>
-      where TSelf : ISm64CollisionMeshBuilder<TSelf, TBuildType>
-      where TBuildType : ISm64CollisionMesh {
+﻿namespace LibSM64Sharp;
+
+public interface ISm64CollisionMeshBuilder<out TSelf, out TBuildType>
+    where TSelf : ISm64CollisionMeshBuilder<TSelf, TBuildType>
+    where TBuildType : ISm64CollisionMesh
+{
     TBuildType Build();
 
     TSelf AddTriangle(
@@ -18,9 +20,9 @@
         (int x, int y, int z) vertex2,
         (int x, int y, int z) vertex3,
         (int x, int y, int z) vertex4);
-  }
+}
 
-  public interface ISm64CollisionMesh {
+public interface ISm64CollisionMesh
+{
     IReadOnlyList<ISm64Triangle> Triangles { get; }
-  }
 }

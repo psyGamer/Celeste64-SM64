@@ -1,8 +1,9 @@
 ﻿using System.Runtime.InteropServices;
 
+namespace LibSM64Sharp.LowLevel;
 
-namespace libsm64sharp.lowlevel {
-  public static class LibSm64Interop {
+public static class LibSm64Interop
+{
     private const string SM64_DLL = "sm64";
 
     [DllImport(SM64_DLL)]
@@ -26,8 +27,8 @@ namespace libsm64sharp.lowlevel {
 
     [DllImport(SM64_DLL)]
     public static extern uint sm64_audio_tick(uint numQueuedSamples,
-                                              uint numDesiredSamples,
-                                              IntPtr audioBuffer);
+        uint numDesiredSamples,
+        IntPtr audioBuffer);
 
     [DllImport(SM64_DLL)]
     public static extern void sm64_static_surfaces_load(
@@ -109,5 +110,4 @@ namespace libsm64sharp.lowlevel {
     public static extern float sm64_surface_find_poison_gas_level(
         float x,
         float z);
-  }
 }
