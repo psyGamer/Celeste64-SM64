@@ -6,7 +6,7 @@ namespace LibSM64Sharp;
 
 public interface ISm64MarioMesh
 {
-    Image<Rgba32> Texture { get; }
+    Texture Texture { get; }
 
     ISm64MarioMeshTrianglesData? TriangleData { get; }
 }

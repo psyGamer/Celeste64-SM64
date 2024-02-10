@@ -15,15 +15,26 @@ public class SM64Player : Player
     
     private class MarioModel : Model
     {
-        private readonly Texture Texture;
         private readonly Mesh Mesh = new();
+        private readonly DefaultMaterial Material;
+        
         private readonly ISm64Mario Mario;
         
         public MarioModel(ISm64Mario mario)
         {
             Mario = mario;
+            
+            Material = new DefaultMaterial();
+            Material.SetShader(Assets.Shaders["Mario"]);
+            if (Material.Shader?.Has("u_color") ?? false)
+                Material.Set("u_color", Material.Color);
+            if (Material.Shader?.Has("u_effects") ?? false)
+                Material.Set("u_effects", Material.Effects);
+            
+            // Mario is animated through updated vertices from libsm64
+            if (Material.Shader != null && Material.Shader.Has("u_jointMult"))
+                Material.Set("u_jointMult", 0.0f);
 
-            Materials.Add(new DefaultMaterial());
             Flags = ModelFlags.Default;             
             
             // unsafe
@@ -32,7 +43,7 @@ public class SM64Player : Player
             //     using var pinHandle = textureMemory.Pin();
             //     Texture = new Texture((IntPtr)pinHandle.Pointer, MarioMesh.Texture.Width, MarioMesh.Texture.Height, TextureFormat.R8G8B8A8);
             // }
-            Texture = Assets.Textures["white"];
+            // Texture = Assets.Textures["white"];
         }
         
         ~MarioModel()
@@ -64,19 +75,13 @@ public class SM64Player : Player
             
             //
             
-            foreach (var mat in Materials)
-            {
-                state.ApplyToMaterial(mat, Matrix.Identity);
+            state.ApplyToMaterial(Material, Matrix.Identity);
+        
+            Material.Texture = Mario.Mesh.Texture;
+            Material.Model = Matrix.CreateTranslation(-Mario.Position.ToVec3()) * Matrix.CreateScale(UnitScaleFactor) * Matrix.CreateTranslation(Mario.Position.ToVec3() * UnitScaleFactor);
+            Material.MVP = Material.Model * state.Camera.ViewProjection;
             
-                if (mat.Shader != null &&
-                    mat.Shader.Has("u_jointMult"))
-                    mat.Set("u_jointMult", 0.0f);
-                mat.Texture = Texture;
-                mat.Model = Matrix.CreateTranslation(-Mario.Position.ToVec3()) * Matrix.CreateScale(UnitScaleFactor) * Matrix.CreateTranslation(Mario.Position.ToVec3() * UnitScaleFactor);
-                mat.MVP = mat.Model * state.Camera.ViewProjection;
-            }
-            
-            var call = new DrawCommand(state.Camera.Target, Mesh, Materials[0])
+            var call = new DrawCommand(state.Camera.Target, Mesh, Material)
             {
                 DepthCompare = state.DepthCompare,
                 DepthMask = state.DepthMask,
@@ -111,6 +116,9 @@ public class SM64Player : Player
         LibSm64Interop.sm64_static_surfaces_load(Data.surfaces, (ulong)Data.surfaces.Length);
         // int marioId = LibSm64Interop.sm64_mario_create(0, 1000, 0);
         Mario = Context.CreateMario(0, 1000, 0);
+        // Initial tick to set everything up
+        Mario.Tick();
+        
         Model = new MarioModel(Mario);
         
         Log.Info($"Mario ID: {Mario}");
@@ -126,9 +134,6 @@ public class SM64Player : Player
         // builder.Build();
 
         // Mario = Context.CreateMario(Position.X, Position.Y, Position.Z);
-        
-        // Tick initial frame
-        Mario.Tick();
     }
 
     public override void Destroyed()

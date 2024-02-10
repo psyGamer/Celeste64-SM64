@@ -10,7 +10,7 @@ public partial class Sm64Context
     {
         private readonly Sm64MarioMeshTrianglesData triangleData_;
 
-        public Sm64MarioMesh(Image<Rgba32> texture)
+        public Sm64MarioMesh(Texture texture)
         {
             Texture = texture;
             triangleData_ = new Sm64MarioMeshTrianglesData
@@ -22,7 +22,7 @@ public partial class Sm64Context
             };
         }
 
-        public Image<Rgba32> Texture { get; }
+        public Texture Texture { get; }
         public ISm64MarioMeshTrianglesData? TriangleData { get; private set; }
 
         public void UpdateTriangleDataFromBuffers(int triangleCount)

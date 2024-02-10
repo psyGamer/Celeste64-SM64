@@ -7,8 +7,7 @@ namespace LibSM64Sharp.Impl;
 
 public partial class Sm64Context
 {
-    public ISm64Mario CreateMario(float x, float y, float z)
-        => new Sm64Mario(marioTextureImage_, x, y, z);
+    public ISm64Mario CreateMario(float x, float y, float z) => new Sm64Mario(marioTextureImage_, x, y, z);
 
     private class Sm64Mario : ISm64Mario
     {
@@ -16,7 +15,7 @@ public partial class Sm64Context
         private LowLevelSm64MarioOutState outState_;
         private readonly Sm64MarioMesh mesh_;
 
-        public Sm64Mario(Image<Rgba32> marioTextureImage, float x, float y, float z)
+        public Sm64Mario(Texture marioTextureImage, float x, float y, float z)
         {
             id_ = LibSm64Interop.sm64_mario_create(x, y, z);
             if (id_ == -1)

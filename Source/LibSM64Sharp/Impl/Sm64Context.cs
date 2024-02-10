@@ -10,7 +10,7 @@ public sealed partial class Sm64Context : ISm64Context
 {
     private const int SM64_TEXTURE_WIDTH = 64 * 11;
     private const int SM64_TEXTURE_HEIGHT = 64;
-    private readonly Image<Rgba32> marioTextureImage_;
+    private readonly Texture marioTextureImage_;
 
     public static void RegisterDebugPrintFunction(
         DebugPrintFuncDelegate handler)
@@ -45,26 +45,8 @@ public sealed partial class Sm64Context : ISm64Context
             textureDataHandle.AddrOfPinnedObject());
         LibSm64Interop.sm64_audio_init(romHandle.AddrOfPinnedObject());
 
-        marioTextureImage_ =
-            new Image<Rgba32>(SM64_TEXTURE_WIDTH, SM64_TEXTURE_HEIGHT);
-        {
-            var frame = this.marioTextureImage_.Frames[0];
-            for (var ix = 0; ix < SM64_TEXTURE_WIDTH; ix++)
-            {
-                for (var iy = 0; iy < SM64_TEXTURE_HEIGHT; iy++)
-                {
-                    var pixel = frame[ix, iy];
-
-                    var pixelOffset = 4 * (ix + SM64_TEXTURE_WIDTH * iy);
-                    pixel.R = textureData[pixelOffset + 0];
-                    pixel.G = textureData[pixelOffset + 1];
-                    pixel.B = textureData[pixelOffset + 2];
-                    pixel.A = textureData[pixelOffset + 3];
-
-                    frame[ix, iy] = pixel;
-                }
-            }
-        }
+        marioTextureImage_ = new Texture(SM64_TEXTURE_WIDTH, SM64_TEXTURE_HEIGHT);
+        marioTextureImage_.SetData<byte>(textureData);
 
         romHandle.Free();
         textureDataHandle.Free();
