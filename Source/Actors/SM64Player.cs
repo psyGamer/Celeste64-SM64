@@ -43,9 +43,9 @@ public class SM64Player : Player
         
         public override void Render(ref RenderState state)
         {
-            Log.Info(Mario.Mesh.TriangleData);
-            Log.Info(Mario.Mesh.TriangleData == null);
-            Log.Info(Mario.Mesh.TriangleData.TriangleCount.ToString());
+            // Log.Info(Mario.Mesh.TriangleData);
+            // Log.Info(Mario.Mesh.TriangleData == null);
+            // Log.Info(Mario.Mesh.TriangleData.TriangleCount.ToString());
             
             if (Mario.Mesh.TriangleData is not { } data) return;
         
@@ -95,6 +95,11 @@ public class SM64Player : Player
     
     private MarioModel Model;
     
+    /// <summary>
+    /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
+    /// </summary>
+    private bool IsOddFrame = false;
+    
     public override void Added()
     {
         base.Added();
@@ -121,6 +126,9 @@ public class SM64Player : Player
         // builder.Build();
 
         // Mario = Context.CreateMario(Position.X, Position.Y, Position.Z);
+        
+        // Tick initial frame
+        Mario.Tick();
     }
 
     public override void Destroyed()
@@ -135,16 +143,22 @@ public class SM64Player : Player
     {
         base.Update();
      
-        Mario.Gamepad.AnalogStick.X = Controls.Move.ValueNoDeadzone.X;
-        Mario.Gamepad.AnalogStick.Y = Controls.Move.ValueNoDeadzone.Y;
+        Mario.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
+        Mario.Gamepad.AnalogStick.Y = Controls.Move.Value.Y;
         Mario.Gamepad.IsAButtonDown = Controls.Jump.Down;
         Mario.Gamepad.IsBButtonDown = Controls.Dash.Down;
         Mario.Gamepad.IsZButtonDown = Controls.Climb.Down;
         
-        Mario.Tick();
+        GetCameraTarget(out var cameraLookAt, out var cameraPosition, out bool snapRequested);
+        Mario.Gamepad.CameraNormal.X = cameraLookAt.X - cameraPosition.X;
+        Mario.Gamepad.CameraNormal.Y = cameraLookAt.Y - cameraPosition.Y;
         
-        Log.Info($"Pos: {Mario.Position.X} {Mario.Position.Y} {Mario.Position.Z}");
-        Log.Info($"Vel: {Mario.Velocity.X} {Mario.Velocity.Y} {Mario.Velocity.Z}");
+        if (IsOddFrame)
+            Mario.Tick();
+        IsOddFrame = !IsOddFrame;
+        
+        // Log.Info($"Pos: {Mario.Position.X} {Mario.Position.Y} {Mario.Position.Z}");
+        // Log.Info($"Vel: {Mario.Velocity.X} {Mario.Velocity.Y} {Mario.Velocity.Z}");
 
         Position = Position with
         {
