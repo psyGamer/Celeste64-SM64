@@ -7,15 +7,19 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Version>1.1.1</Version>
-    <PublishSingleFile>true</PublishSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FosterFramework" Version="0.1.18-alpha" />
+    <PackageReference Include="FosterFramework" Version="0.1.18-alpha" Publicize="true" />
     <PackageReference Include="SharpGLTF.Runtime" Version="1.0.0-alpha0031" />
     <PackageReference Include="Sledge.Formats.Map" Version="1.1.5" />
+      
+      <PackageReference Include="System.Resources.Extensions" Version="8.0.0"/>
+      <PackageReference Include="SixLabors.ImageSharp" Version="2.1.3" />
+      <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.1" PrivateAssets="all"/>
   </ItemGroup>
 
   <PropertyGroup Condition="($(RuntimeIdentifier) == '' and $([MSBuild]::IsOSPlatform('Linux'))) or $(RuntimeIdentifier.StartsWith('linux'))">
@@ -46,22 +50,27 @@
 
   <ItemGroup Condition="$(IsLinux) == 'true' and $(IsArm64) == 'true'">
     <Content Include="Source/Audio/FMOD/libs/libarm64/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+    <!--  TODO: libsm64.so (ARM64) -->
   </ItemGroup>
 
   <ItemGroup Condition="$(IsLinux) == 'true' and $(IsArm) == 'true'">
     <Content Include="Source/Audio/FMOD/libs/libarm/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+    <!--  TODO: libsm64.so (ARM) -->
   </ItemGroup>
 
   <ItemGroup Condition="$(IsLinux) == 'true' and $(IsArm64) != 'true' and $(IsArm) != 'true'">
     <Content Include="Source/Audio/FMOD/libs/lib64/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+    <Content Include="Source/LibSM64Sharp/libs/linux-x64/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup Condition="$(IsWindows) == 'true'">
     <Content Include="Source/Audio/FMOD/libs/x64/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+    <Content Include="Source/LibSM64Sharp/libs/win-x64/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup Condition="$(IsMacOS) == 'true'">
     <Content Include="Source/Audio/FMOD/libs/osx/**" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+    <!--  TODO: libsm64.dylib (x64) -->
   </ItemGroup>
 
 </Project>
