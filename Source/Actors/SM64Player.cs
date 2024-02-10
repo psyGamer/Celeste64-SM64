@@ -15,6 +15,9 @@ public class SM64Player : Player
     /// </summary>
     private const float UnitScaleFactor = 0.1f;
     
+    private const float SM64_To_C64 = UnitScaleFactor;
+    private const float C64_To_SM64 = 1.0f / UnitScaleFactor;
+    
     private class MarioModel : Model
     {
         private readonly Mesh Mesh = new();
@@ -150,6 +153,7 @@ public class SM64Player : Player
     private bool IsOddFrame = false;
 
     public override Vec3 Position => Mario != null ? Mario.Position.ToVec3() * UnitScaleFactor : position;
+    public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToVec3() * UnitScaleFactor : velocity;
 
     public override void Added()
     {
@@ -233,8 +237,8 @@ public class SM64Player : Player
     public override void Update()
     {
         base.Update();
-     
-        Mario!.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
+        
+        Mario.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
         Mario.Gamepad.AnalogStick.Y = Controls.Move.Value.Y;
         Mario.Gamepad.IsAButtonDown = Controls.Jump.Down;
         Mario.Gamepad.IsBButtonDown = Controls.Dash.Down;

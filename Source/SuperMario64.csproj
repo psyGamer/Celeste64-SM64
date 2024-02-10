@@ -10,14 +10,14 @@
         <!-- See https://github.com/BepInEx/BepInEx.AssemblyPublicizer/issues/5 -->
         <NoWarn>$(NoWarn);CS0436</NoWarn>
     
-        <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
-        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    
-        <WarningLevel>4</WarningLevel>
-    
-        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
-        <MSBuildAllProjects>true</MSBuildAllProjects>
+<!--        <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>-->
+<!--        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>-->
+<!--    -->
+<!--        <WarningLevel>4</WarningLevel>-->
+<!--    -->
+<!--        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>-->
+<!--        <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>-->
+<!--        <MSBuildAllProjects>true</MSBuildAllProjects>-->
     </PropertyGroup>
     
     <ItemGroup>
