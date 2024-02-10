@@ -113,27 +113,28 @@ public class SM64Player : Player
         
         Context = Sm64Context.InitFromRom(romBytes);
         
-        LibSm64Interop.sm64_static_surfaces_load(Data.surfaces, (ulong)Data.surfaces.Length);
-        // int marioId = LibSm64Interop.sm64_mario_create(0, 1000, 0);
-        Mario = Context.CreateMario(0, 1000, 0);
+        // LibSm64Interop.sm64_static_surfaces_load(Data.surfaces, (ulong)Data.surfaces.Length);
+        // // int marioId = LibSm64Interop.sm64_mario_create(0, 1000, 0);
+        // Mario = Context.CreateMario(0, 1000, 0);
+        
+        const float Size = 1000.0f;
+        const float ZOffset = -1.0f; 
+        var builder = Context.CreateStaticCollisionMesh();
+        builder.AddQuad(Sm64SurfaceType.SURFACE_DEFAULT, Sm64TerrainType.TERRAIN_GRASS, 
+            ((int x, int y, int z))(Position.X / UnitScaleFactor - Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor + Size),
+            ((int x, int y, int z))(Position.X / UnitScaleFactor + Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor + Size),
+            ((int x, int y, int z))(Position.X / UnitScaleFactor - Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor - Size),
+            ((int x, int y, int z))(Position.X / UnitScaleFactor + Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor - Size));
+        builder.Build();
+
+        Mario = Context.CreateMario(Position.X / UnitScaleFactor, Position.Z / UnitScaleFactor, Position.Y / UnitScaleFactor);
+        
         // Initial tick to set everything up
         Mario.Tick();
         
         Model = new MarioModel(Mario);
-        
+        Model.Flags |= ModelFlags.Silhouette; 
         Log.Info($"Mario ID: {Mario}");
-        
-        // const float Size = 1000.0f;
-        // const float ZOffset = -100.0f; 
-        // var builder = Context.CreateStaticCollisionMesh();
-        // builder.AddQuad(Sm64SurfaceType.SURFACE_DEFAULT, Sm64TerrainType.TERRAIN_GRASS, 
-        //     ((int x, int y, int z))(Position.X - Size, Position.Y + ZOffset, Position.Z - Size),
-        //     ((int x, int y, int z))(Position.X + Size, Position.Y + ZOffset, Position.Z - Size),
-        //     ((int x, int y, int z))(Position.X - Size, Position.Y + ZOffset, Position.Z + Size),
-        //     ((int x, int y, int z))(Position.X + Size, Position.Y + ZOffset, Position.Z + Size));
-        // builder.Build();
-
-        // Mario = Context.CreateMario(Position.X, Position.Y, Position.Z);
     }
 
     public override void Destroyed()

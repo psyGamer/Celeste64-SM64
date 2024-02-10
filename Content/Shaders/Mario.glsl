@@ -94,5 +94,5 @@ void main(void)
 	// fade bottom to white
 	col = mix(col, u_vertical_fog_color.rgb, fall);
 
-	o_color = vec4(col, 1) * fade;
+	o_color = vec4(col, 1);
 }
