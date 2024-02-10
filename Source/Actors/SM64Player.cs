@@ -163,14 +163,53 @@ public class SM64Player : Player
         // // int marioId = LibSm64Interop.sm64_mario_create(0, 1000, 0);
         // Mario = Context.CreateMario(0, 1000, 0);
         
-        const float Size = 1000.0f;
-        const float ZOffset = -1.0f; 
         var builder = Context.CreateStaticCollisionMesh();
-        builder.AddQuad(Sm64SurfaceType.SURFACE_DEFAULT, Sm64TerrainType.TERRAIN_GRASS, 
-            ((int x, int y, int z))(Position.X / UnitScaleFactor - Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor + Size),
-            ((int x, int y, int z))(Position.X / UnitScaleFactor + Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor + Size),
-            ((int x, int y, int z))(Position.X / UnitScaleFactor - Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor - Size),
-            ((int x, int y, int z))(Position.X / UnitScaleFactor + Size, Position.Z / UnitScaleFactor + ZOffset*2, Position.Y / UnitScaleFactor - Size));
+        
+        // Bounding box of all solids combined
+        int minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+        
+        foreach (var solid in World.All<Solid>().Cast<Solid>())
+        {
+            var verts = solid.WorldVertices;
+
+            foreach (var face in solid.WorldFaces)
+            {
+                // Triangulate the mesh
+                for (int i = 0; i < face.VertexCount - 2; i ++)
+                {
+                    builder.AddTriangle(Sm64SurfaceType.SURFACE_DEFAULT, Sm64TerrainType.TERRAIN_GRASS,
+                        Deconstruct(verts[face.VertexStart + 0]),
+                        Deconstruct(verts[face.VertexStart + 2 + i]),
+                        Deconstruct(verts[face.VertexStart + 1 + i]));
+                }
+            }
+
+            continue;
+
+            (int x, int y, int z) Deconstruct(Vec3 vec)
+            {
+                int x = (int)(vec.X / UnitScaleFactor);
+                // !! IMPORTANT !! In SM64 Y and Z are flipped compared to C64.
+                int z = (int)(vec.Y / UnitScaleFactor);
+                int y = (int)(vec.Z / UnitScaleFactor);
+                
+                minX = Math.Min(minX, x);
+                maxX = Math.Max(maxX, x);
+                minZ = Math.Min(minZ, z);
+                maxZ = Math.Max(maxZ, z);
+                
+                return (x, y, z);
+            }
+        }
+
+        // Add death plane
+        const int DeathPlaneInflate = 10;
+        builder.AddQuad(Sm64SurfaceType.SURFACE_DEATH_PLANE, Sm64TerrainType.TERRAIN_GRASS, 
+            ((int x, int y, int z))(minX - DeathPlaneInflate, World.DeathPlane / UnitScaleFactor, maxZ + DeathPlaneInflate),
+            ((int x, int y, int z))(maxX + DeathPlaneInflate, World.DeathPlane / UnitScaleFactor, maxZ + DeathPlaneInflate),
+            ((int x, int y, int z))(minX - DeathPlaneInflate, World.DeathPlane / UnitScaleFactor, minZ - DeathPlaneInflate),
+            ((int x, int y, int z))(maxX + DeathPlaneInflate, World.DeathPlane / UnitScaleFactor, minZ - DeathPlaneInflate));
+        
         builder.Build();
 
         Mario = Context.CreateMario(Position.X / UnitScaleFactor, Position.Z / UnitScaleFactor, Position.Y / UnitScaleFactor);
@@ -222,10 +261,10 @@ public class SM64Player : Player
     //     snapRequested = false;
     // }
 
-    public override void Kill()
-    {
-        // no.
-    }
+    // public override void Kill()
+    // {
+    //     // no.
+    // }
 
     public override void CollectModels(List<(Actor Actor, Model Model)> populate)
     {
