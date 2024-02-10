@@ -1,6 +1,4 @@
 ﻿using LibSM64Sharp.LowLevel;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp;
 
 namespace LibSM64Sharp;
 

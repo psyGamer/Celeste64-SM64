@@ -3,7 +3,7 @@ using LibSM64Sharp;
 using LibSM64Sharp.Impl;
 using LibSM64Sharp.LowLevel;
 
-namespace Celeste64;
+namespace Celeste64.Mod.SuperMario64;
 
 public class SM64Player : Player
 {
@@ -95,10 +95,10 @@ public class SM64Player : Player
         }
     } 
     
-    private ISm64Context Context;
-    private ISm64Mario Mario;
+    private ISm64Context Context = null!;
+    private ISm64Mario Mario = null!;
     
-    private MarioModel Model;
+    private MarioModel MarioPlayerModel = null!;
     
     /// <summary>
     /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
@@ -132,8 +132,8 @@ public class SM64Player : Player
         // Initial tick to set everything up
         Mario.Tick();
         
-        Model = new MarioModel(Mario);
-        Model.Flags |= ModelFlags.Silhouette; 
+        MarioPlayerModel = new MarioModel(Mario);
+        MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
         Log.Info($"Mario ID: {Mario}");
     }
 
@@ -182,6 +182,6 @@ public class SM64Player : Player
 
     public override void CollectModels(List<(Actor Actor, Model Model)> populate)
     {
-        populate.Add((this, Model));
+        populate.Add((this, MarioPlayerModel));
     }
 }

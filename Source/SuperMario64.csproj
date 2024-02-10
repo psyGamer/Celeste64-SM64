@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Library</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+<!--        <LangVersion>latest</LangVersion>-->
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+
+        <!-- See https://github.com/BepInEx/BepInEx.AssemblyPublicizer/issues/5 -->
+        <NoWarn>$(NoWarn);CS0436</NoWarn>
+    
+        <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    
+        <WarningLevel>4</WarningLevel>
+    
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+        <MSBuildAllProjects>true</MSBuildAllProjects>
+    </PropertyGroup>
+    
+    <ItemGroup>
+<!--        <Reference Include="../../../Celeste64.dll" Private="false" Publicize="true" />-->
+<!--        <Reference Include="/home/manuel/Code/C#/Fuji/Celeste64Launcher/bin/x64/Debug/net8.0/linux-x64/Celeste64.dll" Private="false" Publicize="true" />-->
+        <Reference Include="/home/manuel/Code/C#/Fuji/bin/x64/Debug/net8.0/Celeste64.dll" Private="false" Publicize="true" />
+        
+        <PackageReference Include="FosterFramework" Version="0.1.18-alpha" Publicize="true" />
+        <PackageReference Include="Sledge.Formats.Map" Version="1.1.5" />
+        <PackageReference Include="MonoMod.RuntimeDetour" Version="25.1.0-prerelease.2" />
+
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.1" PrivateAssets="all" />
+    </ItemGroup>
+
+    <Target Name="CopyFiles" AfterTargets="Build">
+        <Copy SourceFiles="$(OutputPath)/$(AssemblyName).dll" DestinationFolder="../DLLs"/>
+        <Copy SourceFiles="$(OutputPath)/$(AssemblyName).pdb" DestinationFolder="../DLLs"/>
+
+<!--        <Copy SourceFiles="LibSM64Sharp/libs/win-x64/sm64.dll" DestinationFolder="../DLLs"/>-->
+<!--        <Copy SourceFiles="LibSM64Sharp/libs/linux-x64/libsm64.so" DestinationFolder="../DLLs"/>-->
+        <!--  TODO: libsm64.so (ARM64) -->
+        <!--  TODO: libsm64.so (ARM) -->
+        <!--  TODO: libsm64.dylib (x64) -->
+    </Target>
+</Project>

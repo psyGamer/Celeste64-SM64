@@ -55,7 +55,7 @@ public partial class Sm64Context
         public bool Loaded { get; }
         public byte ReleaseRate { get; }
         public byte Pan { get; }
-        public ISm64AudioBankSound Sound { get; }
+        public ISm64AudioBankSound Sound { get; } = null!;
     }
 
     private class Sm64Instrument : ISm64Instrument
@@ -95,7 +95,7 @@ public partial class Sm64Context
         public byte NormalRangeLo { get; }
         public byte NormalRangeHi { get; }
         public ISm64AudioBankSound? LowNotesSound { get; }
-        public ISm64AudioBankSound NormalNotesSound { get; }
+        public ISm64AudioBankSound NormalNotesSound { get; } = null!;
         public ISm64AudioBankSound? HighNotesSound { get; }
     }
 

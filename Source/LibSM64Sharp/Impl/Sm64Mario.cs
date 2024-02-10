@@ -1,7 +1,5 @@
 ﻿using System.Runtime.InteropServices;
 using LibSM64Sharp.LowLevel;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace LibSM64Sharp.Impl;
 

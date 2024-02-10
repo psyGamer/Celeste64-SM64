@@ -1,7 +1,7 @@
 using LibSM64Sharp;
 using LibSM64Sharp.LowLevel;
 
-namespace Celeste64;
+namespace Celeste64.Mod.SuperMario64;
 
 public class Data
 {

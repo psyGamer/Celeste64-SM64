@@ -92,6 +92,7 @@ public readonly struct LowLevelSm64Vector3i : IReadOnlySm64Vector3<int>
             0 => X,
             1 => Y,
             2 => Z,
+            _ => throw new ArgumentOutOfRangeException(nameof(index), index, null)
         };
 
     public override string ToString() => $"({X}, {Y}, {Z})";

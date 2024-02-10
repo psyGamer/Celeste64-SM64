@@ -16,7 +16,7 @@ public partial class Sm64Context
         public byte SoundStatus { get; init; }
         public byte BitFlags1 { get; init; }
         public byte BitFlags2 { get; init; }
-        public IReadOnlySm64Vector3<float> Position { get; init; }
+        public IReadOnlySm64Vector3<float> Position { get; init; } = null!;
     }
 
     public delegate void PlaySoundFuncDelegate(PlaySoundArgs args);

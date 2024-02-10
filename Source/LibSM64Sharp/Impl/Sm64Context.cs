@@ -1,8 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using LibSM64Sharp.LowLevel;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace LibSM64Sharp.Impl;
 
