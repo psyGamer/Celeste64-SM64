@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FMOD;
 using LibSM64Sharp;
 using LibSM64Sharp.Impl;
 using LibSM64Sharp.LowLevel;
@@ -13,7 +14,7 @@ public class SM64Player : Player
     /// A single unit in SM64 and C64 are different sizes.
     /// This constant transforms a SM64 unit into a C64 one.
     /// </summary>
-    private const float UnitScaleFactor = 0.1f;
+    private const float UnitScaleFactor = 0.075f;
     
     private const float SM64_To_C64 = UnitScaleFactor;
     private const float C64_To_SM64 = 1.0f / UnitScaleFactor;
@@ -147,6 +148,11 @@ public class SM64Player : Player
     
     private MarioModel MarioPlayerModel = null!;
     
+    private const int NumChannels = 2;
+    private const int AudioBufferSize = 544 * 2 * NumChannels;
+    private const int SampleRate = 44100;
+    private byte[] AudioBuffer = new byte[AudioBufferSize*2];
+    
     /// <summary>
     /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
     /// </summary>
@@ -155,6 +161,9 @@ public class SM64Player : Player
     public override Vec3 Position => Mario != null ? Mario.Position.ToVec3() * UnitScaleFactor : position;
     public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToVec3() * UnitScaleFactor : velocity;
 
+    private FMOD.Sound sn;
+    private Channel ch;
+    
     public override void Added()
     {
         base.Added();
@@ -224,12 +233,79 @@ public class SM64Player : Player
         MarioPlayerModel = new MarioModel(Mario);
         MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
         Log.Info($"Mario ID: {Mario}");
+        
+        unsafe
+        {
+            fixed (byte* pBuffer = AudioBuffer)
+            {
+                generatePCMData((short*)pBuffer, NumChannels);
+            }
+        }
+        
+        Log.Info("A");
+        Audio.Check(Audio.system.getCoreSystem(out var coreSystem));
+        CREATESOUNDEXINFO exinfo = default;
+        exinfo.cbsize = Marshal.SizeOf(typeof(CREATESOUNDEXINFO));
+        exinfo.numchannels = NumChannels;
+        exinfo.decodebuffersize = AudioBufferSize;
+        exinfo.format = SOUND_FORMAT.PCM16;
+        exinfo.defaultfrequency = SampleRate;
+        exinfo.pcmreadcallback = PCMREADCALLBACK;
+        exinfo.length = SampleRate*2*4;
+        
+        Log.Info("B");
+        Audio.Check(coreSystem.createSound(0, MODE.OPENUSER | MODE.LOOP_NORMAL | MODE.CREATESTREAM, ref exinfo, out sn));
+        // coreSystem.getMasterChannelGroup(out var channelGroup);
+        Log.Info("C");
+        Audio.Check(coreSystem.playSound(sn, new ChannelGroup(0), false, out ch));
     }
+    
+    // Function to generate PCM data
+    private static unsafe void generatePCMData(short *buffer, int numSamples) {
+        for (int i = 0; i < numSamples; i++) {
+            // Generate some audio data (e.g., sine wave)
+            float sample = 32767.0f * MathF.Sin(2.0f * 3.14159265f * 440.0f * i / SampleRate);
+            buffer[i * NumChannels] = (short)sample; // Left channel
+            buffer[i * NumChannels + 1] = (short)sample; // Right channel (for stereo)
+        }
+    }
+    
+    private static unsafe RESULT PCMREADCALLBACK(IntPtr sound, IntPtr data, uint datalen)
+    {
+        generatePCMData((short*)data, (int)(datalen / sizeof(short) / NumChannels));
+        return RESULT.OK;
+    }
+    
+    static float  t1 = 0, t2 = 0;        // time
+    static float  v1 = 0, v2 = 0;        // velocity
+    private static unsafe RESULT pcmreadcallback(IntPtr sound, IntPtr data, uint datalen)
+    {
+        Log.Info($"CALLBACK: {(nint)sound} {(nint)data} {datalen}");
+        
+        short *stereo16bitbuffer = (short*)data;
+
+        for (uint count = 0; count < (datalen >> 2); count++)     // >>2 = 16bit stereo (4 bytes per sample)
+        {
+            *stereo16bitbuffer++ = (short)(MathF.Sin(t1) * 32767.0f);    // left channel
+            *stereo16bitbuffer++ = (short)(MathF.Sin(t2) * 32767.0f);    // right channel
+
+            t1 += 0.01f   + v1;
+            t2 += 0.0142f + v2;
+            v1 += (float)(MathF.Sin(t1) * 0.002f);
+            v2 += (float)(MathF.Sin(t2) * 0.002f);
+        }
+
+        return RESULT.OK;
+    }
+
 
     public override void Destroyed()
     {
         base.Destroyed();
 
+        sn.release();
+        ch.stop();
+        
         Mario?.Dispose();
         Context.Dispose();
     }
@@ -237,6 +313,10 @@ public class SM64Player : Player
     public override void Update()
     {
         base.Update();
+        
+        Audio.Check(ch.getPosition(out uint fpos, TIMEUNIT.MS));
+        Audio.Check(sn.getLength(out uint flen, TIMEUNIT.MS));
+        Log.Info($"Channel: {fpos} / {flen} | ({ch.handle}) ({sn.handle})");
         
         Mario.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
         Mario.Gamepad.AnalogStick.Y = Controls.Move.Value.Y;
