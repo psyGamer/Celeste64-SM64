@@ -3,6 +3,7 @@ using FMOD;
 using LibSM64Sharp;
 using LibSM64Sharp.Impl;
 using LibSM64Sharp.LowLevel;
+using SuperMario64;
 using Thread = System.Threading.Thread;
 
 namespace Celeste64.Mod.SuperMario64;
@@ -97,21 +98,16 @@ public class SM64Player : Player
     
     private static unsafe void CaptureThread()
     {
+        var buffer = new short[AudioBufferSize * NumChannels];
+
         while (runThread)
         {
             if (instance is not { } p || !p.active) continue;
 
-            var buffer = new short[544*2*2];
             fixed (short* pBuf = buffer)
             {
-                if (audioQueue.Count < 12000)
-                {
-                    uint writtenSamples = LibSm64Interop.sm64_audio_tick((uint)audioQueue.Count, (uint)buffer.Length, (IntPtr)pBuf);
-                    for (uint i = 0; i < writtenSamples*2*2; i += 1)
-                    {
-                        audioQueue.Enqueue(buffer[i]);
-                    }
-                }
+                uint writtenSamples = LibSm64Interop.sm64_audio_tick(QueueSize, (uint)buffer.Length, (IntPtr)pBuf);
+                audioQueue.Enqueue(pBuf, writtenSamples * 2 * 2);
             }
             
             Thread.Sleep(33);
@@ -130,8 +126,9 @@ public class SM64Player : Player
     private const int NumChannels = 2;
     private const int SampleRate = 32000;
     private const int AudioBufferSize = 544 * 2;
+    private const int QueueSize = 16384;
     
-    private static readonly Queue<short> audioQueue = new();
+    private static readonly CircularQueue<short> audioQueue = new(QueueSize);
     
     /// <summary>
     /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
@@ -229,12 +226,12 @@ public class SM64Player : Player
     
     private static unsafe RESULT LibSM64Playback(IntPtr sound, IntPtr data, uint length)
     {
-        for (int i = 0; i < length; i += Marshal.SizeOf<short>())
-        {
-            if (!audioQueue.TryDequeue(out short sample))
-                sample = 0;
-            *(short*)(data + i) = sample;
-        }
+        var len = Math.Min((int)(length / Marshal.SizeOf<short>()), audioQueue.Size);
+        audioQueue.Dequeue((short*)data, (uint)len);
+        
+        // Fill reset with 0
+        var filled = len * Marshal.SizeOf<short>();
+        NativeMemory.Fill((void*)(data + filled), (UIntPtr)(length - filled), 0);
         
         return RESULT.OK;
     }
