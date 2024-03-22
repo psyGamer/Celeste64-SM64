@@ -5,14 +5,11 @@ namespace Celeste64.Mod.SuperMario64;
 
 public class SuperMario64Mod : GameMod
 {
-    public override void OnModLoaded()
+    public static SuperMario64Mod Instance { get; private set; } = null!;
+    
+    public SuperMario64Mod()
     {
-        SM64Player.Load();
-    }
-
-    public override void OnModUnloaded()
-    {
-        SM64Player.Unload();
+        Instance = this;
     }
     
     public override void OnPreMapLoaded(World world, Map map)

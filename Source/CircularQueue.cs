@@ -1,78 +1,106 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace SuperMario64;
+namespace Celeste64.Mod.SuperMario64;
 
-public sealed unsafe class CircularQueue<T> where T: unmanaged
+public sealed unsafe class CircularQueue<T>(uint bufferSize)
+    where T : unmanaged
 {
-    private T[] internalBuffer;
-    private uint internalBufferSize;
+    private const float ResizeFactor = 2.0f;
     
+    private T[] internalBuffer = new T[bufferSize];
+
     private uint headIdx = 0, tailIdx = 0;
     private uint size;
-    
+
     public uint Size => size;
-    
-    public CircularQueue(uint bufferSize)
-    {
-        internalBuffer = new T[bufferSize];
-        internalBufferSize = bufferSize;
-    }
-    
+
     public void Clear()
     {
         headIdx = tailIdx = size = 0;
     }
     
-    public void Enqueue(T* srcBuffer, uint count)
+    public void Resize(uint newBufferSize)
     {
-        Debug.Assert(count <= internalBufferSize); // TODO
+        var newBuffer = new T[newBufferSize];
         
-        fixed (T* pInternal = internalBuffer)
+        if (tailIdx <= headIdx)
         {
-            uint untilCut = internalBufferSize - headIdx;
-            if (count <= untilCut)
-            {
-                // Fits into remaining space
-                NativeMemory.Copy(srcBuffer, pInternal + headIdx, (UIntPtr)(count * Marshal.SizeOf<T>()));
-                headIdx += count;
-            }
-            else
-            {
-                // Needs to be cut in half
-                uint wrappedSize = count - untilCut;
-                NativeMemory.Copy(srcBuffer, pInternal + headIdx, (UIntPtr)(untilCut * Marshal.SizeOf<T>()));
-                NativeMemory.Copy(srcBuffer + untilCut, pInternal, (UIntPtr)(wrappedSize * Marshal.SizeOf<T>()));
-                headIdx = wrappedSize;
-            }
+            // Data is currently not wrapped
+            // Change indices, so that tail is at 0
+            Array.Copy(internalBuffer, tailIdx, newBuffer, 0, headIdx - tailIdx);
+        }
+        else
+        {
+            // Data is currently wrapped
+            long untilCut = internalBuffer.Length - tailIdx;
+            Array.Copy(internalBuffer, tailIdx, newBuffer, 0, untilCut);
+            Array.Copy(internalBuffer, 0, newBuffer, untilCut, headIdx);
         }
         
-        size += count;
+        internalBuffer = newBuffer;
+    }
+    
+    public void Enqueue(T* srcBuffer, uint count)
+    {
+        lock (this)
+        {
+            if (count > internalBuffer.Length)
+            {
+                Resize(Math.Max(count, (uint)(internalBuffer.Length * ResizeFactor)));
+            }
+        
+            fixed (T* pInternal = internalBuffer)
+            {
+                long untilCut = internalBuffer.Length - headIdx;
+                if (count <= untilCut)
+                {
+                    // Fits into remaining space
+                    NativeMemory.Copy(srcBuffer, pInternal + headIdx, (UIntPtr)(count * Marshal.SizeOf<T>()));
+                    headIdx += count;
+                }
+                else
+                {
+                    // Needs to be cut in half
+                    long wrappedSize = count - untilCut;
+                    NativeMemory.Copy(srcBuffer, pInternal + headIdx, (UIntPtr)(untilCut * Marshal.SizeOf<T>()));
+                    NativeMemory.Copy(srcBuffer + untilCut, pInternal, (UIntPtr)(wrappedSize * Marshal.SizeOf<T>()));
+                    headIdx = (uint)wrappedSize;
+                }
+            }
+        
+            size += count;
+        }
     }
     
     public void Dequeue(T* dstBuffer, uint count)
     {
-        Debug.Assert(count <= internalBufferSize); // TODO
-        
-        fixed (T* pInternal = internalBuffer)
+        lock (this)
         {
-            uint untilCut = internalBufferSize - tailIdx;
-            if (count <= untilCut)
+            if (count > internalBuffer.Length)
             {
-                // Fits into remaining space
-                NativeMemory.Copy(pInternal + tailIdx, dstBuffer, (UIntPtr)(count * Marshal.SizeOf<T>()));
-                tailIdx += count;
+                Resize(Math.Max(count, (uint)(internalBuffer.Length * ResizeFactor)));
             }
-            else
-            {
-                // Needs to be cut in half
-                uint wrappedSize = count - untilCut;
-                NativeMemory.Copy(pInternal + tailIdx, dstBuffer, (UIntPtr)(untilCut * Marshal.SizeOf<T>()));
-                NativeMemory.Copy(pInternal, dstBuffer + untilCut, (UIntPtr)(wrappedSize * Marshal.SizeOf<T>()));
-                tailIdx = wrappedSize;
-            }
-        }
         
-        size -= count;
+            fixed (T* pInternal = internalBuffer)
+            {
+                long untilCut = internalBuffer.Length - tailIdx;
+                if (count <= untilCut)
+                {
+                    // Fits into remaining space
+                    NativeMemory.Copy(pInternal + tailIdx, dstBuffer, (UIntPtr)(count * Marshal.SizeOf<T>()));
+                    tailIdx += count;
+                }
+                else
+                {
+                    // Needs to be cut in half
+                    long wrappedSize = count - untilCut;
+                    NativeMemory.Copy(pInternal + tailIdx, dstBuffer, (UIntPtr)(untilCut * Marshal.SizeOf<T>()));
+                    NativeMemory.Copy(pInternal, dstBuffer + untilCut, (UIntPtr)(wrappedSize * Marshal.SizeOf<T>()));
+                    tailIdx = (uint)wrappedSize;
+                }
+            }
+        
+            size -= count;
+        }
     }
 }

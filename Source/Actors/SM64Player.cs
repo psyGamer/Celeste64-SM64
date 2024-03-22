@@ -3,8 +3,6 @@ using FMOD;
 using LibSM64Sharp;
 using LibSM64Sharp.Impl;
 using LibSM64Sharp.LowLevel;
-using SuperMario64;
-using Thread = System.Threading.Thread;
 
 namespace Celeste64.Mod.SuperMario64;
 
@@ -40,8 +38,6 @@ public class SM64Player : Player
                 Material.Set("u_jointMult", 0.0f);
 
             Flags = ModelFlags.Default;
-            
-            audioQueue.Clear();
         }
         
         public override void Render(ref RenderState state)
@@ -80,44 +76,6 @@ public class SM64Player : Player
         }
     }
     
-    private static Thread? threadHandle;
-    private static bool runThread;
-    
-    internal static void Load()
-    {
-        runThread = true;
-        threadHandle = new Thread(CaptureThread);
-        threadHandle.Start();
-    }
-    internal static void Unload()
-    {
-        runThread = false;
-        threadHandle?.Join();
-        threadHandle = null;
-    }
-    
-    private static unsafe void CaptureThread()
-    {
-        var buffer = new short[AudioBufferSize * NumChannels];
-
-        while (runThread)
-        {
-            if (instance is not { } p || !p.active) continue;
-
-            fixed (short* pBuf = buffer)
-            {
-                uint writtenSamples = LibSm64Interop.sm64_audio_tick(QueueSize, (uint)buffer.Length, (IntPtr)pBuf);
-                audioQueue.Enqueue(pBuf, writtenSamples * 2 * 2);
-            }
-            
-            Thread.Sleep(33);
-        }
-    }
-    
-    private static SM64Player? instance = null;
-    
-    private bool active;
-    
     private ISm64Context Context = null!;
     private ISm64Mario? Mario = null;
     
@@ -128,6 +86,7 @@ public class SM64Player : Player
     private const int AudioBufferSize = 544 * 2;
     private const int QueueSize = 16384;
     
+    private static readonly short[] audioBuffer = new short[AudioBufferSize * NumChannels];
     private static readonly CircularQueue<short> audioQueue = new(QueueSize);
     
     /// <summary>
@@ -143,14 +102,11 @@ public class SM64Player : Player
     public override void Added()
     {
         base.Added();
-        instance = this;
         
         var romBytes = File.ReadAllBytes("sm64.z64");
-        
         Context = Sm64Context.InitFromRom(romBytes);
         
         var builder = Context.CreateStaticCollisionMesh();
-        
         // Bounding box of all solids combined
         int minX = 0, maxX = 0, minZ = 0, maxZ = 0;
         
@@ -221,10 +177,10 @@ public class SM64Player : Player
         Audio.Check(coreSystem.createStream("libsm64 playback", MODE.OPENUSER | MODE.LOOP_NORMAL, ref exinfo, out sound));
         Audio.Check(coreSystem.playSound(sound, new ChannelGroup(0), false, out _));
         
-        active = true;
+        SuperMario64Mod.Instance.OnUnloadedCleanup += Dispose;
     }
     
-    private static unsafe RESULT LibSM64Playback(IntPtr sound, IntPtr data, uint length)
+    private static unsafe RESULT LibSM64Playback(IntPtr _, IntPtr data, uint length)
     {
         var len = Math.Min((int)(length / Marshal.SizeOf<short>()), audioQueue.Size);
         audioQueue.Dequeue((short*)data, (uint)len);
@@ -238,20 +194,11 @@ public class SM64Player : Player
 
     public override void Destroyed()
     {
-        active = false;
-        
         base.Destroyed();
-
-        Audio.Check(sound.release());
-        
-        Mario?.Dispose();
-        Context.Dispose();
-        
-        if (instance == this)
-            instance = null;
+        Dispose();
     }
 
-    public override void Update()
+    public override unsafe void Update()
     {
         base.Update();
         
@@ -271,6 +218,12 @@ public class SM64Player : Player
         if (IsOddFrame)
         {
             Mario.Tick();
+            
+            fixed (short* pBuf = audioBuffer)
+            {
+                uint writtenSamples = LibSm64Interop.sm64_audio_tick(QueueSize, (uint)audioBuffer.Length, (IntPtr)pBuf);
+                audioQueue.Enqueue(pBuf, writtenSamples * 2 * 2);
+            }
         } 
         IsOddFrame = !IsOddFrame;
     }
@@ -278,5 +231,17 @@ public class SM64Player : Player
     public override void CollectModels(List<(Actor Actor, Model Model)> populate)
     {
         populate.Add((this, MarioPlayerModel));
+    }
+    
+    private bool disposed = false;
+    private void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        
+        Audio.Check(sound.release());
+        
+        Mario?.Dispose();
+        Context.Dispose();
     }
 }
