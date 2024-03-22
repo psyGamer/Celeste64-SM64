@@ -21,9 +21,7 @@
     </PropertyGroup>
     
     <ItemGroup>
-<!--        <Reference Include="../../../Celeste64.dll" Private="false" Publicize="true" />-->
-<!--        <Reference Include="/home/manuel/Code/C#/Fuji/Celeste64Launcher/bin/x64/Debug/net8.0/linux-x64/Celeste64.dll" Private="false" Publicize="true" />-->
-        <Reference Include="/home/manuel/Code/C#/Fuji/bin/x64/Debug/net8.0/Celeste64.dll" Private="false" Publicize="true" />
+        <Reference Include="../../../Celeste64.dll" Private="false" Publicize="true" />
         
         <PackageReference Include="FosterFramework" Version="0.1.18-alpha" Publicize="true" />
         <PackageReference Include="Sledge.Formats.Map" Version="1.1.5" />
@@ -33,11 +31,11 @@
     </ItemGroup>
 
     <Target Name="CopyFiles" AfterTargets="Build">
-        <Copy SourceFiles="$(OutputPath)/$(AssemblyName).dll" DestinationFolder="../DLLs"/>
-        <Copy SourceFiles="$(OutputPath)/$(AssemblyName).pdb" DestinationFolder="../DLLs"/>
+        <Copy SourceFiles="$(OutputPath)/$(AssemblyName).dll" DestinationFolder="../Libraries"/>
+        <Copy SourceFiles="$(OutputPath)/$(AssemblyName).pdb" DestinationFolder="../Libraries"/>
 
-<!--        <Copy SourceFiles="LibSM64Sharp/libs/win-x64/sm64.dll" DestinationFolder="../DLLs"/>-->
-<!--        <Copy SourceFiles="LibSM64Sharp/libs/linux-x64/libsm64.so" DestinationFolder="../DLLs"/>-->
+        <Copy SourceFiles="LibSM64Sharp/libs/win-x64/sm64.dll" DestinationFolder="../Libraries/lib-win-x64"/>
+        <Copy SourceFiles="LibSM64Sharp/libs/linux-x64/libsm64.so" DestinationFolder="../Libraries/lib-linux-x64"/>
         <!--  TODO: libsm64.so (ARM64) -->
         <!--  TODO: libsm64.so (ARM) -->
         <!--  TODO: libsm64.dylib (x64) -->
