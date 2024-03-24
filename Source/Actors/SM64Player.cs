@@ -78,8 +78,7 @@ public class SM64Player : Player
     }
     
     // private ISm64Context Context = null!;
-    private Mario? Mario = null;
-    
+    private Mario Mario = null!;
     private MarioModel MarioPlayerModel = null!;
     
     private const int NumChannels = 2;
@@ -192,9 +191,6 @@ public class SM64Player : Player
 
     public override unsafe void Update()
     {
-        if (Mario == null)
-            return;
-        
         Mario.Gamepad.Stick.X = -Controls.Move.Value.X;
         Mario.Gamepad.Stick.Y = Controls.Move.Value.Y;
         Mario.Gamepad.AButtonDown = Controls.Jump.Down;
@@ -244,17 +240,21 @@ public class SM64Player : Player
         
         // Death plane
         if (Position.Z < World.DeathPlane)
-            Mario.Kill();
+            Kill();
         
         // Respawning
         if (Dead && !Game.Instance.IsMidTransition)
         {
+            SM64Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
+            
             var entry = World.Entry with { Reason = World.EntryReasons.Respawned };
             Game.Instance.Goto(new Transition()
             {
                 Mode = Transition.Modes.Replace,
                 Scene = () => new World(entry),
-                ToBlack = new AngledWipe()
+                ToBlack = new BowserWipe(),
+                FromBlack = new AngledWipe(),
+                HoldOnBlackFor = 1.0f,
             });
         }
 
@@ -262,19 +262,16 @@ public class SM64Player : Player
 
     public override void Spring(Spring spring)
     {
-        if (Mario == null)
-            return;
-        
         Mario.SetAction(SM64Action.TWIRLING);
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
     }
 
     public override void Kill()
     {
+        Mario.Kill();
+        
         Dead = true;
         Save.CurrentRecord.Deaths++;
-        
-        SM64Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
     }
 
     public override void ValidateTransformations()
