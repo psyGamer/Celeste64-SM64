@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using LibSM64.Util;
 using static LibSM64.Native;
 
 namespace LibSM64;
@@ -55,4 +56,39 @@ public static class SM64Context
     
     public static unsafe void PlaySound(SM64Sound sound, SM64Vector3f pos) => sm64_play_sound((int)sound, &pos);
     public static void PlaySoundGlobal(SM64Sound sound) => sm64_play_sound_global((int)sound);
+    
+    public static unsafe Texture LoadTextureFromROM(byte[] romBytes, uint offset, uint textureWidth, uint textureHeight, uint textureDepth)
+    {
+        fixed (byte* pIn = romBytes)
+        {
+            var header = Mio0.DecodeHeader(pIn);
+
+            var outBuf = new byte[header.dest_size];
+            fixed (byte* pOut = outBuf)
+            {
+                Mio0.Decode(header, pIn + offset, pOut);
+        
+                // Convert internal SM64 data to RGBA texture
+                var imgData = new Color[textureWidth * textureHeight];
+        
+                if (textureDepth == 16) {
+                    for (int i = 0; i < textureWidth * textureHeight; i++) {
+                        imgData[i].R = (byte)(((outBuf[i*2] & 0xF8) >> 3) * 0xFF / 0x1F);
+                        imgData[i].G = (byte)((((outBuf[i*2] & 0x07) << 2) | ((outBuf[i*2+1] & 0xC0) >> 6)) * 0xFF / 0x1F);
+                        imgData[i].B = (byte)(((outBuf[i*2+1] & 0x3E) >> 1) * 0xFF / 0x1F);
+                        imgData[i].A = (byte)((outBuf[i * 2 + 1] & 0x01) != 0 ? 0xFF : 0x00);
+                    }
+                } else if (textureDepth == 32) {
+                    for (int i = 0; i < textureWidth * textureHeight; i++) {
+                        imgData[i].R = outBuf[i*4];
+                        imgData[i].G = outBuf[i*4+1];
+                        imgData[i].B = outBuf[i*4+2];
+                        imgData[i].A = outBuf[i*4+3];
+                    }
+                }
+
+                return new Texture((int)textureWidth, (int)textureHeight, imgData);                
+            }
+        }
+    }
 }
