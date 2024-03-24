@@ -100,8 +100,25 @@ public class SM64Player : Player
     /// </summary>
     private bool IsOddFrame = false;
 
-    public override Vec3 Position => Mario != null ? Mario.Position.ToC64Vec3() : position;
+    // Mario is technically null, until the player is Added
+    public override Vec3 Position
+    {
+        get => Mario != null ? Mario.Position.ToC64Vec3() : position;
+        set
+        {
+            if (position == value) 
+                return;
+
+            position = value;
+            dirty = true;
+                
+            if (Mario != null)
+                Mario.Position = value.ToSM64Vec3();
+        }
+    }
+
     public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToC64Vec3() : velocity;
+
     public override Vec2 Facing
     {
         get => Calc.AngleToVector(Mario.FaceAngle);
@@ -109,9 +126,9 @@ public class SM64Player : Player
         {
             if (facing == value)
                 return;
-            Log.Info($"Facing = {value}");
-            Log.Info(new StackTrace().ToString());
+
             facing = value;
+            dirty = true;
             Mario.FaceAngle = value.Angle();
         }
     }
@@ -285,6 +302,19 @@ public class SM64Player : Player
 
                         break;
                     }
+                }
+            }
+        }
+        
+        // Check for pickups
+        foreach (var actor in World.All<IPickup>())
+        {
+            if (actor is IPickup pickup)
+            {
+                if ((SolidWaistTestPos - actor.Position).LengthSquared() < pickup.PickupRadius * pickup.PickupRadius)
+                {
+                    pickup.Pickup(this);
+                    ModManager.Instance.OnItemPickup(this, pickup);
                 }
             }
         }
