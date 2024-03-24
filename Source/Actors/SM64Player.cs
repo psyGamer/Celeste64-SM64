@@ -83,17 +83,8 @@ public class SM64Player : Player
         }
     }
     
-    // private ISm64Context Context = null!;
     private Mario Mario = null!;
     private MarioModel MarioPlayerModel = null!;
-    
-    private const int NumChannels = 2;
-    private const int SampleRate = 32000;
-    private const int AudioBufferSize = 544 * 2;
-    private const int QueueSize = 16384;
-    
-    private static readonly short[] audioBuffer = new short[AudioBufferSize * NumChannels];
-    private static readonly CircularQueue<short> audioQueue = new(QueueSize);
     
     /// <summary>
     /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
@@ -132,10 +123,6 @@ public class SM64Player : Player
             Mario.FaceAngle = value.Angle();
         }
     }
-
-    public override void SetTargetFacing(Vector2 facing) => Facing = facing;
-
-    private FMOD.Sound sound;
 
     public override void Added()
     {
@@ -185,23 +172,6 @@ public class SM64Player : Player
         MarioPlayerModel = new MarioModel(Mario);
         MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
         
-        // Create FMOD audio stream to play back libsm64 data
-        Audio.Check(Audio.system.getCoreSystem(out var coreSystem));
-        CREATESOUNDEXINFO exinfo = default;
-        exinfo.cbsize = Marshal.SizeOf(typeof(CREATESOUNDEXINFO));
-        exinfo.numchannels = NumChannels;
-        exinfo.decodebuffersize = (uint)(AudioBufferSize * Marshal.SizeOf<short>());
-        exinfo.format = SOUND_FORMAT.PCM16;
-        exinfo.defaultfrequency = SampleRate;
-        exinfo.pcmreadcallback = LibSM64Playback;
-        exinfo.length = (uint)(SampleRate * NumChannels * Marshal.SizeOf<short>());
-        exinfo.length = (uint)(AudioBufferSize * NumChannels * Marshal.SizeOf<short>());
-        
-        Audio.Check(coreSystem.createStream("libsm64 playback", MODE.OPENUSER | MODE.LOOP_NORMAL, ref exinfo, out sound));
-        Audio.Check(coreSystem.playSound(sound, new ChannelGroup(0), false, out _));
-        
-        SuperMario64Mod.Instance.OnUnloadedCleanup += Dispose;
-        
         // Setup camera
         CameraOriginPos = Position;
         GetCameraTarget(out var orig, out var target, out _);
@@ -209,18 +179,6 @@ public class SM64Player : Player
         World.Camera.Position = orig;
     }
     
-    private static unsafe RESULT LibSM64Playback(IntPtr _, IntPtr data, uint length)
-    {
-        var len = Math.Min((int)(length / Marshal.SizeOf<short>()), audioQueue.Size);
-        audioQueue.Dequeue((short*)data, (uint)len);
-        
-        // Fill reset with 0
-        var filled = len * Marshal.SizeOf<short>();
-        NativeMemory.Fill((void*)(data + filled), (UIntPtr)(length - filled), 0);
-        
-        return RESULT.OK;
-    }
-
     public override void Destroyed()
     {
         base.Destroyed();
@@ -229,7 +187,7 @@ public class SM64Player : Player
     
     private bool inCutscene = false;
 
-    public override unsafe void Update()
+    public override void Update()
     {
         bool cutsceneActive = World.All<Cutscene>().Count() != 0;
         if (cutsceneActive && !inCutscene)
@@ -322,12 +280,7 @@ public class SM64Player : Player
         if (IsOddFrame)
         {
             Mario.Tick();
-            
-            fixed (short* pBuf = audioBuffer)
-            {
-                uint writtenSamples = sm64_audio_tick(QueueSize, (uint)audioBuffer.Length, pBuf);
-                audioQueue.Enqueue(pBuf, writtenSamples * 2 * 2);
-            }
+            AudioPlayer.ShouldTick = true;
         } 
         IsOddFrame = !IsOddFrame;
         
@@ -411,6 +364,9 @@ public class SM64Player : Player
         Dead = true;
         Save.CurrentRecord.Deaths++;
     }
+    
+    public override void SetTargetFacing(Vector2 facing) => Facing = facing;
+    public override void Stop() => Mario.Velocity = new SM64Vector3f(0.0f, 0.0f, 0.0f);
 
     public override void ValidateTransformations()
     {
@@ -432,8 +388,6 @@ public class SM64Player : Player
     {
         if (disposed) return;
         disposed = true;
-        
-        Audio.Check(sound.release());
         
         Mario?.Dispose();
     }

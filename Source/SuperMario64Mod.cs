@@ -17,10 +17,16 @@ public class SuperMario64Mod : GameMod
     {
         var romBytes = File.ReadAllBytes("sm64.z64");
         SM64Context.InitializeFromROM(romBytes);
+        AudioPlayer.Create();
     }
     public override void OnModUnloaded()
     {
+        AudioPlayer.Dispose();
         SM64Context.Terminate();
+    }
+    public override void Update(float deltaTime)
+    {
+        AudioPlayer.Update();
     }
 
     public override void OnPreMapLoaded(World world, Map map)
