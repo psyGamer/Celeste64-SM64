@@ -29,7 +29,7 @@ public class Mario
         Mesh = new MarioMesh();
     }
     
-    public Mario(Vec3 vec) : this(vec.X, vec.Y, vec.Z) { }
+    public Mario(SM64Vector3f vec) : this(vec.x, vec.y, vec.z) { }
 
     ~Mario() => Dispose();
 
@@ -48,6 +48,11 @@ public class Mario
     {
         get => state.velocity;
         set => sm64_set_mario_velocity(id, value.x, value.y, value.z);
+    }
+    public float ForwardVelocity
+    {
+        get => throw new NotImplementedException();
+        set => sm64_set_mario_forward_velocity(id, value);
     }
     public float FaceAngle
     {

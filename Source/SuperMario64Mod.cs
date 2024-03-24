@@ -29,6 +29,14 @@ public class SuperMario64Mod : GameMod
         AudioPlayer.Update();
     }
 
+    public override void OnSceneEntered(Scene scene)
+    {
+        if (scene is not World world)
+            return;
+        
+        SM64Player.GenerateSolids(world);
+    }
+
     public override void OnPreMapLoaded(World world, Map map)
     {
         AddActorFactory("PlayerSpawn", new Map.ActorFactory((map, entity) =>

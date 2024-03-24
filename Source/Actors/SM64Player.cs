@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using FMOD;
 using LibSM64;
 using static LibSM64.Native;
 
@@ -18,6 +15,9 @@ public static class SM64VectorExtensions
     
     public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
     public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Z * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
+    
+    public static SM64Vector2f ToSM64VelocityVec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64_Vel, vec.Y * SM64Player.C64_To_SM64_Vel);
+    public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Vel, vec.Z * SM64Player.C64_To_SM64_Vel, vec.Y * SM64Player.C64_To_SM64_Vel);
 }
 
 public class SM64Player : Player
@@ -126,12 +126,39 @@ public class SM64Player : Player
 
     public override void Added()
     {
+        Mario = new Mario(Position.X * C64_To_SM64_Pos, Position.Z * C64_To_SM64_Pos, Position.Y * C64_To_SM64_Pos);
+        
+        // Initial tick to set everything up
+        Mario.Tick();
+        
+        MarioPlayerModel = new MarioModel(Mario);
+        MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
+        
+        // Setup camera
+        CameraOriginPos = Position;
+        GetCameraTarget(out var orig, out var target, out _);
+        World.Camera.LookAt = target;
+        World.Camera.Position = orig;
+    }
+    
+    public override void Destroyed()
+    {
+        base.Destroyed();
+        Dispose();
+    }
+    
+    public static void GenerateSolids(World world)
+    {
         var builder = new StaticCollisionMesh.Builder();
 
         // Bounding box of all solids combined
         float minX = 0, maxX = 0, minZ = 0, maxZ = 0;
         
-        foreach (var solid in World.All<Solid>().Cast<Solid>())
+        // Gather all solids, even if they aren't part of the World yet
+        var solids = world.All<Solid>().Cast<Solid>()
+                    .Concat(world.adding.OfType<Solid>());
+        
+        foreach (var solid in solids)
         {
             var verts = solid.WorldVertices;
 
@@ -157,32 +184,12 @@ public class SM64Player : Player
         const int DeathPlaneInflate = (int)(10 * C64_To_SM64_Pos);
         const int DeathPlaneOffset = (int)(100 * C64_To_SM64_Pos);
         builder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
-            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
+            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
+            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
         
         builder.Build();
-
-        Mario = new Mario(Position.X * C64_To_SM64_Pos, Position.Z * C64_To_SM64_Pos, Position.Y * C64_To_SM64_Pos);
-        
-        // Initial tick to set everything up
-        Mario.Tick();
-        
-        MarioPlayerModel = new MarioModel(Mario);
-        MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
-        
-        // Setup camera
-        CameraOriginPos = Position;
-        GetCameraTarget(out var orig, out var target, out _);
-        World.Camera.LookAt = target;
-        World.Camera.Position = orig;
-    }
-    
-    public override void Destroyed()
-    {
-        base.Destroyed();
-        Dispose();
     }
     
     private bool inCutscene = false;
@@ -200,9 +207,6 @@ public class SM64Player : Player
             // End cutscene
             Mario.Action = SM64Action.IDLE;
         }
-
-        // Rotate towards target
-        // Facing = Calc.AngleToVector(Calc.AngleApproach(Facing.Angle(), TargetFacing.Angle(), MathF.Tau * 2 * Time.Delta));
         
         Mario.Gamepad.Stick.X = -Controls.Move.Value.X;
         Mario.Gamepad.Stick.Y = Controls.Move.Value.Y;
@@ -255,7 +259,6 @@ public class SM64Player : Player
                         if (Controls.Dash.ConsumePress())
                         {
                             npc.Interact(this);
-                            return;
                         }
 
                         break;
@@ -265,21 +268,31 @@ public class SM64Player : Player
         }
         
         // Check for pickups
-        foreach (var actor in World.All<IPickup>())
+        if (IsAbleToPickup)
         {
-            if (actor is IPickup pickup)
+            foreach (var actor in World.All<IPickup>())
             {
-                if ((SolidWaistTestPos - actor.Position).LengthSquared() < pickup.PickupRadius * pickup.PickupRadius)
+                if (actor is IPickup pickup)
                 {
-                    pickup.Pickup(this);
-                    ModManager.Instance.OnItemPickup(this, pickup);
+                    if ((SolidWaistTestPos - actor.Position).LengthSquared() < pickup.PickupRadius * pickup.PickupRadius)
+                    {
+                        pickup.Pickup(this);
+                        ModManager.Instance.OnItemPickup(this, pickup);
+                    }
                 }
             }
         }
         
+        // Only update specific states
+        if (StateMachine.State == States.Cassette)
+        {
+            StateMachine.Update();
+        }
+        
         if (IsOddFrame)
         {
-            Mario.Tick();
+            if (StateMachine.State != States.Cassette)
+                Mario.Tick();
             AudioPlayer.ShouldTick = true;
         } 
         IsOddFrame = !IsOddFrame;
@@ -307,7 +320,7 @@ public class SM64Player : Player
 
     public override void LateUpdate()
     {
-        // update camera origin position
+        // Update camera origin position
         {
             float ZPad = StateMachine.State == States.Climbing ? 0 : 8;
             CameraOriginPos.X = Position.X;
@@ -327,7 +340,7 @@ public class SM64Player : Player
                 CameraOriginPos.Z += (targetZ - CameraOriginPos.Z) * (1 - MathF.Pow(.001f, Time.Delta));
         }
 
-        // update camera position
+        // Update camera position
         {
             Vec3 lookAt, cameraPos;
 
@@ -348,13 +361,20 @@ public class SM64Player : Player
 
             World.Camera.FOVMultiplier = Calc.Approach(World.Camera.FOVMultiplier, targetFOV, Time.Delta / 4);
         }
-
     }
 
     public override void Spring(Spring spring)
     {
         Mario.Action = SM64Action.TWIRLING;
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
+    }
+
+    public override void StCassetteExit()
+    {
+        base.StCassetteExit();
+        // Mario.Action = SM64Action.FREEFALL;
+        // Mario.Velocity = velocity.ToSM64VelocityVec3();
+        // Mario.ForwardVelocity = 0.0f;
     }
 
     public override void Kill()
@@ -366,7 +386,12 @@ public class SM64Player : Player
     }
     
     public override void SetTargetFacing(Vector2 facing) => Facing = facing;
-    public override void Stop() => Mario.Velocity = new SM64Vector3f(0.0f, 0.0f, 0.0f);
+    public override void Stop()
+    {
+        Mario.Action = SM64Action.FREEFALL;
+        Mario.Velocity = new SM64Vector3f(0.0f, 0.0f, 0.0f);
+        Mario.ForwardVelocity = 0.0f;
+    }
 
     public override void ValidateTransformations()
     {
@@ -380,7 +405,8 @@ public class SM64Player : Player
 
     public override void CollectModels(List<(Actor Actor, Model Model)> populate)
     {
-        populate.Add((this, MarioPlayerModel));
+        if (StateMachine.State != States.Cassette)
+            populate.Add((this, MarioPlayerModel));
     }
     
     private bool disposed = false;
