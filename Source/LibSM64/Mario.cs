@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
-using LibSM64.Util;
-using static LibSM64.Util.Native;
+using static LibSM64.Native;
 
 namespace LibSM64;
 
@@ -49,6 +47,7 @@ public class Mario
     }
     
     public void SetAction(SM64Action action) => sm64_set_mario_action(id, (uint)action);
+    public void Kill() => sm64_mario_kill(id);
 
     public unsafe void Tick()
     {

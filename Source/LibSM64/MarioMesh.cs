@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using LibSM64.Util;
+using static LibSM64.Native;
 
 namespace LibSM64;
 

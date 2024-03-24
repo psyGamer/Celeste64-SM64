@@ -1,6 +1,5 @@
 using System.Reflection;
-using LibSM64.Util;
-using static LibSM64.Util.Native;
+using static LibSM64.Native;
 
 namespace LibSM64;
 
@@ -23,8 +22,8 @@ public class StaticCollisionMesh
         {
             surfaces.Add(new SM64Surface
             {
-                type = surfaceType,
-                terrain = terrainType,
+                type = (short)surfaceType,
+                terrain = (ushort)terrainType,
                 
                 v0x = (int)vertex1.x,
                 v0y = (int)vertex1.y,

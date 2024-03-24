@@ -1,9 +1,7 @@
 using System.Runtime.InteropServices;
 using FMOD;
 using LibSM64;
-using LibSM64.Util;
-using LibSM64Sharp.LowLevel;
-using static LibSM64.Util.Native;
+using static LibSM64.Native;
 
 namespace Celeste64.Mod.SuperMario64;
 
@@ -139,12 +137,13 @@ public class SM64Player : Player
         }
 
         // Add death plane
-        const int DeathPlaneInflate = 10;
+        const int DeathPlaneInflate = (int)(10 * C64_To_SM64_Pos);
+        const int DeathPlaneOffset = (int)(100 * C64_To_SM64_Pos);
         builder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
-            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
+            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
+            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
         
         builder.Build();
 
@@ -209,6 +208,9 @@ public class SM64Player : Player
         Mario.Gamepad.BButtonDown = Controls.Dash.Down;
         Mario.Gamepad.ZButtonDown = Controls.Climb.Down;
         
+        if (Controls.Climb.Pressed)
+            Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
+        
         // Rotate Camera
         {
             var invertX = Save.Instance.InvertCamera == Save.InvertCameraOptions.X || Save.Instance.InvertCamera == Save.InvertCameraOptions.Both;
@@ -249,6 +251,23 @@ public class SM64Player : Player
             }
         } 
         IsOddFrame = !IsOddFrame;
+        
+        // Death plane
+        if (Position.Z < World.DeathPlane)
+            Mario.Kill();
+        
+        // Respawning
+        if (Dead && !Game.Instance.IsMidTransition)
+        {
+            var entry = World.Entry with { Reason = World.EntryReasons.Respawned };
+            Game.Instance.Goto(new Transition()
+            {
+                Mode = Transition.Modes.Replace,
+                Scene = () => new World(entry),
+                ToBlack = new AngledWipe()
+            });
+        }
+
     }
 
     public override void Spring(Spring spring)
@@ -258,6 +277,14 @@ public class SM64Player : Player
         
         Mario.SetAction(SM64Action.TWIRLING);
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
+    }
+
+    public override void Kill()
+    {
+        Dead = true;
+        Save.CurrentRecord.Deaths++;
+        
+        Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
     }
 
     public override void ValidateTransformations()

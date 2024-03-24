@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using static LibSM64.Util.Native;
+using static LibSM64.Native;
 
 namespace LibSM64;
 
@@ -56,4 +56,7 @@ public class SM64Context
             return sm64_audio_tick(numQueuedSamples, numDesiredSamples, pBuf);
         }
     }
+    
+    public unsafe void PlaySound(SM64Sound sound, SM64Vector3f pos) => sm64_play_sound((int)sound, &pos);
+    public void PlaySoundGlobal(SM64Sound sound) => sm64_play_sound_global((int)sound);
 }
