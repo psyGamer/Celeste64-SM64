@@ -3,7 +3,7 @@ using LibSM64.Util;
 
 namespace LibSM64;
 
-public class SM64Mario
+public class Mario
 {
     public struct GamepadState
     {
@@ -14,28 +14,36 @@ public class SM64Mario
         public bool ZButtonDown;
     }
     
-    public SM64Mario(float x, float y, float z)
+    private readonly int id;
+    
+    private State state;
+    
+    public GamepadState Gamepad;
+    public readonly MarioMesh Mesh;
+    
+    public Mario(float x, float y, float z)
     {
-        ID = sm64_mario_create(x, y, z);
-        if (ID == -1)
+        id = sm64_mario_create(x, y, z);
+        if (id == -1)
             throw new Exception("Failed to create Mario! Have you created a floor for him to stand on yet?");
+        
+        Mesh = new MarioMesh();
     }
     
-    public SM64Mario(Vec3 vec) : this(vec.X, vec.Y, vec.Z) { }
+    public Mario(Vec3 vec) : this(vec.X, vec.Y, vec.Z) { }
 
-    ~SM64Mario()
+    ~Mario() => Dispose();
+
+    public void Dispose()
     {
-        Dispose();
+        sm64_mario_delete(id);
         GC.SuppressFinalize(this);
     }
-
-    private readonly int ID;
     
-    public readonly GamepadState Gamepad;
+    public SM64Vector3f Position => state.position;
+    public SM64Vector3f Velocity => state.velocity;
 
-    public void Dispose() => sm64_mario_delete(ID);
-    
-    public void Tick()
+    public unsafe void Tick()
     {
         var inputs = new Inputs
         {
@@ -47,6 +55,25 @@ public class SM64Mario
             camLookX = Gamepad.CameraLook.X,
             camLookZ = Gamepad.CameraLook.Y,
         };
+        
+        fixed (SM64Vector3f* pPos = Mesh.PositionsBuffer)
+        fixed (SM64Vector3f* pNormal = Mesh.NormalsBuffer)
+        fixed (SM64Vector3f* pColor = Mesh.ColorsBuffer)
+        fixed (SM64Vector2f* pUV = Mesh.UvsBuffer)
+        {
+            var buffers = new GeometryBuffers
+            {
+                position = (IntPtr)pPos,
+                normal = (IntPtr)pNormal,
+                color = (IntPtr)pColor,
+                uv = (IntPtr)pUV,
+            };
+
+            sm64_mario_tick(id, ref inputs, ref state, ref buffers);
+            
+            Mesh.UpdateBuffers(buffers.numTrianglesUsed);
+        }
+        
     }
 
     #region Native Interop
@@ -78,8 +105,11 @@ public class SM64Mario
         public ushort numTrianglesUsed;
     };
 
+    [DllImport("sm64")]
     private static extern int sm64_mario_create(float x, float y, float z);
+    [DllImport("sm64")]
     private static extern void sm64_mario_tick(int marioId, ref Inputs inputs, ref State outState, ref GeometryBuffers outBuffers);
+    [DllImport("sm64")]
     private static extern void sm64_mario_delete(int marioId);
 
     private static extern void sm64_set_mario_action(int marioId, uint action);

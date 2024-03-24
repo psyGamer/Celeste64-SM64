@@ -4,37 +4,24 @@ VERTEX:
 
 uniform mat4 u_mvp;
 uniform mat4 u_model;
-uniform mat4 u_jointMat[32];
-uniform float u_jointMult;
 
 layout(location=0) in vec3 a_position;
-layout(location=1) in vec2 a_tex;
+layout(location=1) in vec3 a_normal;
 layout(location=2) in vec3 a_color;
-layout(location=3) in vec3 a_normal;
-layout(location=4) in vec4 a_joint;
-layout(location=5) in vec4 a_weight;
+layout(location=3) in vec2 a_tex;
 
-out vec2 v_tex;
-out vec3 v_color;
 out vec3 v_normal;
+out vec3 v_color;
+out vec2 v_tex;
 out vec3 v_world;
 
 void main(void)
 {
-    mat4 skinMat =
-		u_jointMult * (
-        a_weight.x * u_jointMat[int(a_joint.x)] +
-        a_weight.y * u_jointMat[int(a_joint.y)] +
-        a_weight.z * u_jointMat[int(a_joint.z)] +
-        a_weight.w * u_jointMat[int(a_joint.w)]);
+	gl_Position = u_mvp * vec4(a_position, 1.0);
 
-    mat4 skinRes = mat4(1.0) * (1.0 - u_jointMult) + skinMat;
-
-	gl_Position = u_mvp * skinRes * vec4(a_position, 1.0);
-
-	v_tex = a_tex;
-    v_color = a_color;
 	v_normal = TransformNormal(a_normal, u_model);
+    v_color = a_color;
+	v_tex = a_tex;
 	v_world = vec3(u_model * vec4(a_position, 1.0));
 }
 

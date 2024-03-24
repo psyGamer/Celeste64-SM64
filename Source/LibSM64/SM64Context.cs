@@ -7,7 +7,8 @@ public class SM64Context
 {
     public const int SM64_TEXTURE_WIDTH = 64 * 11;
     public const int SM64_TEXTURE_HEIGHT = 64;
-    private readonly Texture MarioTexture;
+    
+    public readonly Texture MarioTexture;
 
     private static readonly byte[] ExpectedRomHash =
     [
@@ -37,6 +38,14 @@ public class SM64Context
 
         MarioTexture = new Texture(SM64_TEXTURE_WIDTH, SM64_TEXTURE_HEIGHT);
         MarioTexture.SetData<byte>(textureData);
+    }
+    
+    ~SM64Context() => Dispose();
+    
+    public void Dispose()
+    {
+        sm64_global_terminate();
+        GC.SuppressFinalize(this);
     }
 
     #region Native Interop

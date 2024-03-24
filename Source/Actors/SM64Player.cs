@@ -1,8 +1,9 @@
 using System.Runtime.InteropServices;
 using FMOD;
-using LibSM64Sharp;
-using LibSM64Sharp.Impl;
+using LibSM64;
+using LibSM64.Util;
 using LibSM64Sharp.LowLevel;
+using static LibSM64.Util.Native;
 
 namespace Celeste64.Mod.SuperMario64;
 
@@ -17,67 +18,54 @@ public class SM64Player : Player
     
     private class MarioModel : Model
     {
-        private readonly Mesh Mesh = new();
-        private readonly DefaultMaterial Material;
+        private readonly Mario mario;
+        private readonly Texture marioTexture;
         
-        private readonly ISm64Mario Mario;
+        private readonly DefaultMaterial material = new();
         
-        public MarioModel(ISm64Mario mario)
+        public MarioModel(Mario mario, Texture marioTexture)
         {
-            Mario = mario;
+            this.mario = mario;
+            this.marioTexture = marioTexture;
             
-            Material = new DefaultMaterial();
-            Material.SetShader(Assets.Shaders["Mario"]);
-            if (Material.Shader?.Has("u_color") ?? false)
-                Material.Set("u_color", Material.Color);
-            if (Material.Shader?.Has("u_effects") ?? false)
-                Material.Set("u_effects", Material.Effects);
+            material.SetShader(Assets.Shaders["Mario"]);
+            if (material.Shader?.Has("u_color") ?? false)
+                material.Set("u_color", material.Color);
+            if (material.Shader?.Has("u_effects") ?? false)
+                material.Set("u_effects", material.Effects);
             
             // Mario is animated through updated vertices from libsm64
-            if (Material.Shader != null && Material.Shader.Has("u_jointMult"))
-                Material.Set("u_jointMult", 0.0f);
+            if (material.Shader != null && material.Shader.Has("u_jointMult"))
+                material.Set("u_jointMult", 0.0f);
 
             Flags = ModelFlags.Default;
         }
         
         public override void Render(ref RenderState state)
         {
-            if (Mario.Mesh.TriangleData is not { } data) return;
+            state.ApplyToMaterial(material, Matrix.Identity);
         
-            List<Vertex> vertices = [];
-            List<int> indices = [];
+            material.Texture = marioTexture;
+            material.Model = Matrix.CreateTranslation(-mario.Position.ToVec3()) * Matrix.CreateScale(SM64_To_C64) * Matrix.CreateTranslation(mario.Position.ToVec3() * SM64_To_C64);
+            material.MVP = material.Model * state.Camera.ViewProjection;
             
-            for (int i = 0; i < data.TriangleCount * 3; i++)
-            {
-                vertices.Add(new Vertex(data.Positions[i].ToVec3(), data.Uvs[i].ToVec2(), data.Colors[i].ToVec3(), data.Normals[i].ToVec3()));
-                indices.Add(i);
-            }
-
-            Mesh.SetVertices<Vertex>(CollectionsMarshal.AsSpan(vertices));
-            Mesh.SetIndices<int>(CollectionsMarshal.AsSpan(indices));
-            
-            state.ApplyToMaterial(Material, Matrix.Identity);
-        
-            Material.Texture = Mario.Mesh.Texture;
-            Material.Model = Matrix.CreateTranslation(-Mario.Position.ToVec3()) * Matrix.CreateScale(SM64_To_C64) * Matrix.CreateTranslation(Mario.Position.ToVec3() * SM64_To_C64);
-            Material.MVP = Material.Model * state.Camera.ViewProjection;
-            
-            var call = new DrawCommand(state.Camera.Target, Mesh, Material)
+            var call = new DrawCommand(state.Camera.Target, mario.Mesh.Mesh, material)
             {
                 DepthCompare = state.DepthCompare,
                 DepthMask = state.DepthMask,
                 CullMode = CullMode.None,
                 MeshIndexStart = 0,
-                MeshIndexCount = data.TriangleCount * 3,
+                MeshIndexCount = mario.Mesh.TriangleCount * 3,
             };
             call.Submit();
             state.Calls++;
-            state.Triangles += data.TriangleCount * 3;
+            state.Triangles += mario.Mesh.TriangleCount;
         }
     }
     
-    private ISm64Context Context = null!;
-    private ISm64Mario? Mario = null;
+    // private ISm64Context Context = null!;
+    private SM64Context Context = null!;
+    private Mario? Mario = null;
     
     private MarioModel MarioPlayerModel = null!;
     
@@ -104,11 +92,13 @@ public class SM64Player : Player
         base.Added();
         
         var romBytes = File.ReadAllBytes("sm64.z64");
-        Context = Sm64Context.InitFromRom(romBytes);
+        Context = new SM64Context(romBytes);
+        // Context = Sm64Context.InitFromRom(romBytes);
         
-        var builder = Context.CreateStaticCollisionMesh();
+        var builder = new StaticCollisionMesh.Builder();
+
         // Bounding box of all solids combined
-        int minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+        float minX = 0, maxX = 0, minZ = 0, maxZ = 0;
         
         foreach (var solid in World.All<Solid>().Cast<Solid>())
         {
@@ -119,47 +109,35 @@ public class SM64Player : Player
                 // Triangulate the mesh
                 for (int i = 0; i < face.VertexCount - 2; i ++)
                 {
-                    builder.AddTriangle(Sm64SurfaceType.SURFACE_DEFAULT, Sm64TerrainType.TERRAIN_GRASS,
-                        Deconstruct(verts[face.VertexStart + 0]),
-                        Deconstruct(verts[face.VertexStart + 2 + i]),
-                        Deconstruct(verts[face.VertexStart + 1 + i]));
+                    builder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
+                        (verts[face.VertexStart + 0] * C64_To_SM64).ToSM64Vec3(),
+                        (verts[face.VertexStart + 2 + i] * C64_To_SM64).ToSM64Vec3(),
+                        (verts[face.VertexStart + 1 + i] * C64_To_SM64).ToSM64Vec3());
                 }
             }
-
-            continue;
-
-            (int x, int y, int z) Deconstruct(Vec3 vec)
-            {
-                int x = (int)(vec.X * C64_To_SM64);
-                // !! IMPORTANT !! In SM64 Y and Z are flipped compared to C64.
-                int z = (int)(vec.Y * C64_To_SM64);
-                int y = (int)(vec.Z * C64_To_SM64);
-                
-                minX = Math.Min(minX, x);
-                maxX = Math.Max(maxX, x);
-                minZ = Math.Min(minZ, z);
-                maxZ = Math.Max(maxZ, z);
-                
-                return (x, y, z);
-            }
+            
+            minX = Math.Min(minX, solid.WorldBounds.Min.X);
+            maxX = Math.Max(maxX, solid.WorldBounds.Max.X);
+            minZ = Math.Min(minZ, solid.WorldBounds.Min.Y);
+            maxZ = Math.Max(maxZ, solid.WorldBounds.Max.Y);
         }
 
         // Add death plane
         const int DeathPlaneInflate = 10;
-        builder.AddQuad(Sm64SurfaceType.SURFACE_DEATH_PLANE, Sm64TerrainType.TERRAIN_GRASS, 
-            ((int x, int y, int z))(minX - DeathPlaneInflate, World.DeathPlane * C64_To_SM64, maxZ + DeathPlaneInflate),
-            ((int x, int y, int z))(maxX + DeathPlaneInflate, World.DeathPlane * C64_To_SM64, maxZ + DeathPlaneInflate),
-            ((int x, int y, int z))(minX - DeathPlaneInflate, World.DeathPlane * C64_To_SM64, minZ - DeathPlaneInflate),
-            ((int x, int y, int z))(maxX + DeathPlaneInflate, World.DeathPlane * C64_To_SM64, minZ - DeathPlaneInflate));
+        builder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
+            new SM64Vector3f(minX * C64_To_SM64 - DeathPlaneInflate, World.DeathPlane * C64_To_SM64, maxZ * C64_To_SM64 + DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64 + DeathPlaneInflate, World.DeathPlane * C64_To_SM64, maxZ * C64_To_SM64 + DeathPlaneInflate),
+            new SM64Vector3f(minX * C64_To_SM64 - DeathPlaneInflate, World.DeathPlane * C64_To_SM64, minZ * C64_To_SM64 - DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64 + DeathPlaneInflate, World.DeathPlane * C64_To_SM64, minZ * C64_To_SM64 - DeathPlaneInflate));
         
         builder.Build();
 
-        Mario = Context.CreateMario(Position.X * C64_To_SM64, Position.Z * C64_To_SM64, Position.Y * C64_To_SM64);
+        Mario = new Mario(Position.X * C64_To_SM64, Position.Z * C64_To_SM64, Position.Y * C64_To_SM64);
         
         // Initial tick to set everything up
         Mario.Tick();
         
-        MarioPlayerModel = new MarioModel(Mario);
+        MarioPlayerModel = new MarioModel(Mario, Context.MarioTexture);
         MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
         
         // Create FMOD audio stream to play back libsm64 data
@@ -205,15 +183,15 @@ public class SM64Player : Player
         if (Mario == null)
             return;
         
-        Mario.Gamepad.AnalogStick.X = -Controls.Move.Value.X;
-        Mario.Gamepad.AnalogStick.Y = Controls.Move.Value.Y;
-        Mario.Gamepad.IsAButtonDown = Controls.Jump.Down;
-        Mario.Gamepad.IsBButtonDown = Controls.Dash.Down;
-        Mario.Gamepad.IsZButtonDown = Controls.Climb.Down;
+        Mario.Gamepad.Stick.X = -Controls.Move.Value.X;
+        Mario.Gamepad.Stick.Y = Controls.Move.Value.Y;
+        Mario.Gamepad.AButtonDown = Controls.Jump.Down;
+        Mario.Gamepad.BButtonDown = Controls.Dash.Down;
+        Mario.Gamepad.ZButtonDown = Controls.Climb.Down;
         
         GetCameraTarget(out var cameraLookAt, out var cameraPosition, out _);
-        Mario.Gamepad.CameraNormal.X = cameraLookAt.X - cameraPosition.X;
-        Mario.Gamepad.CameraNormal.Y = cameraLookAt.Y - cameraPosition.Y;
+        Mario.Gamepad.CameraLook.X = cameraLookAt.X - cameraPosition.X;
+        Mario.Gamepad.CameraLook.Y = cameraLookAt.Y - cameraPosition.Y;
         
         if (IsOddFrame)
         {
