@@ -35,14 +35,12 @@ public class SM64Player : Player
     private class MarioModel : Model
     {
         private readonly Mario mario;
-        private readonly Texture marioTexture;
         
         private readonly DefaultMaterial material = new();
         
-        public MarioModel(Mario mario, Texture marioTexture)
+        public MarioModel(Mario mario)
         {
             this.mario = mario;
-            this.marioTexture = marioTexture;
             
             material.SetShader(Assets.Shaders["Mario"]);
             if (material.Shader?.Has("u_color") ?? false)
@@ -61,7 +59,7 @@ public class SM64Player : Player
         {
             state.ApplyToMaterial(material, Matrix.Identity);
         
-            material.Texture = marioTexture;
+            material.Texture = SM64Context.MarioTexture;
             material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64_Pos) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
@@ -80,7 +78,6 @@ public class SM64Player : Player
     }
     
     // private ISm64Context Context = null!;
-    private SM64Context Context = null!;
     private Mario? Mario = null;
     
     private MarioModel MarioPlayerModel = null!;
@@ -105,10 +102,6 @@ public class SM64Player : Player
 
     public override void Added()
     {
-        var romBytes = File.ReadAllBytes("sm64.z64");
-        Context = new SM64Context(romBytes);
-        // Context = Sm64Context.InitFromRom(romBytes);
-        
         var builder = new StaticCollisionMesh.Builder();
 
         // Bounding box of all solids combined
@@ -152,7 +145,7 @@ public class SM64Player : Player
         // Initial tick to set everything up
         Mario.Tick();
         
-        MarioPlayerModel = new MarioModel(Mario, Context.MarioTexture);
+        MarioPlayerModel = new MarioModel(Mario);
         MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
         
         // Create FMOD audio stream to play back libsm64 data
@@ -207,9 +200,6 @@ public class SM64Player : Player
         Mario.Gamepad.AButtonDown = Controls.Jump.Down;
         Mario.Gamepad.BButtonDown = Controls.Dash.Down;
         Mario.Gamepad.ZButtonDown = Controls.Climb.Down;
-        
-        if (Controls.Climb.Pressed)
-            Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
         
         // Rotate Camera
         {
@@ -284,7 +274,7 @@ public class SM64Player : Player
         Dead = true;
         Save.CurrentRecord.Deaths++;
         
-        Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
+        SM64Context.PlaySoundGlobal(SM64Sound.MENU_BOWSER_LAUGH);
     }
 
     public override void ValidateTransformations()
@@ -311,6 +301,5 @@ public class SM64Player : Player
         Audio.Check(sound.release());
         
         Mario?.Dispose();
-        Context.Dispose();
     }
 }

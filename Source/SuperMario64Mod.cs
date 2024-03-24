@@ -1,4 +1,5 @@
 using Celeste64;
+using LibSM64;
 using SledgeEntity = Sledge.Formats.Map.Objects.Entity;
 
 namespace Celeste64.Mod.SuperMario64;
@@ -11,7 +12,17 @@ public class SuperMario64Mod : GameMod
     {
         Instance = this;
     }
-    
+
+    public override void OnModLoaded()
+    {
+        var romBytes = File.ReadAllBytes("sm64.z64");
+        SM64Context.InitializeFromROM(romBytes);
+    }
+    public override void OnModUnloaded()
+    {
+        SM64Context.Terminate();
+    }
+
     public override void OnPreMapLoaded(World world, Map map)
     {
         AddActorFactory("PlayerSpawn", new Map.ActorFactory((map, entity) =>
