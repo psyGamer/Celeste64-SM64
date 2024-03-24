@@ -71,6 +71,9 @@ public class Native
     public static extern void sm64_global_terminate();
     
     [DllImport(SM64_LIB)]
+    public static extern unsafe void sm64_load_menu_texture_atlas(byte* rom, byte* outTexture);
+    
+    [DllImport(SM64_LIB)]
     public static extern unsafe void sm64_audio_init(byte* rom);
     [DllImport(SM64_LIB)]
     public static extern unsafe uint sm64_audio_tick(uint numQueuedSamples, uint numDesiredSamples, short* audioBuffer);
