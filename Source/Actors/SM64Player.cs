@@ -71,6 +71,7 @@ public class SM64Player : Player
             
             var call = new DrawCommand(state.Camera.Target, mario.Mesh.Mesh, material)
             {
+                BlendMode = new BlendMode(BlendOp.Add, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha),
                 DepthCompare = state.DepthCompare,
                 DepthMask = state.DepthMask,
                 CullMode = CullMode.None,

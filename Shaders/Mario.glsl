@@ -43,7 +43,6 @@ uniform float     u_silhouette;
 uniform vec4      u_silhouette_color;
 uniform float     u_time;
 uniform vec4      u_vertical_fog_color;
-uniform float     u_cutout;
 
 in vec2 v_tex;
 in vec3 v_normal;
@@ -59,9 +58,10 @@ void main(void)
 	// wrap back around to the metal cap texture.
 	vec4 src = texture(u_texture, v_tex - vec2(0.00001));
 
-	// only enable if you want ModelFlags.Cutout types to work, didn't end up using
-	//if (src.a < u_cutout)
-	//	discard;
+    // Ugly special caes for the wing cap:
+    // Only it has non 1|1 UV coords, but a white vertex color
+	if (src.a < 0.1 && v_tex != vec2(1.0) && v_color == vec3(1.0))
+		discard;
 
 	float depth = LinearizeDepth(gl_FragCoord.z, u_near, u_far);
 	float fall = Map(v_world.z, 50, 0, 0, 1);
@@ -85,5 +85,5 @@ void main(void)
 	// fade bottom to white
 	col = mix(col, u_vertical_fog_color.rgb, fall);
 
-	o_color = vec4(col, 1);
+	o_color = vec4(col, 1.0);
 }
