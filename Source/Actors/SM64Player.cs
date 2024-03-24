@@ -14,11 +14,11 @@ public static class SM64VectorExtensions
     public static Vec2 AsVec2(this SM64Vector2f vec) => new(vec.x, vec.y);
     public static Vec3 AsVec3(this SM64Vector3f vec) => new(vec.x, vec.z, vec.y);
     
-    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * SM64Player.SM64_To_C64, vec.y * SM64Player.SM64_To_C64);
-    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64, vec.z * SM64Player.SM64_To_C64, vec.y * SM64Player.SM64_To_C64); 
+    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * SM64Player.SM64_To_C64_Pos, vec.y * SM64Player.SM64_To_C64_Pos);
+    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64_Pos, vec.z * SM64Player.SM64_To_C64_Pos, vec.y * SM64Player.SM64_To_C64_Pos); 
     
-    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64, vec.Y * SM64Player.C64_To_SM64);
-    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64, vec.Z * SM64Player.C64_To_SM64, vec.Y * SM64Player.C64_To_SM64);
+    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
+    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Z * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
 }
 
 public class SM64Player : Player
@@ -27,8 +27,12 @@ public class SM64Player : Player
     /// A single unit in SM64 and C64 are different sizes.
     /// These constants transform a SM64 unit into a C64 one or vice versa.
     /// </summary>
-    public const float SM64_To_C64 = 0.075f;
-    public const float C64_To_SM64 = 1.0f / SM64_To_C64;
+    public const float SM64_To_C64_Pos = 0.075f;
+    public const float C64_To_SM64_Pos = 1.0f / SM64_To_C64_Pos;
+    
+    // C64 uses px/s, SM64 uses px/f (30 FPS)
+    public const float SM64_To_C64_Vel = SM64_To_C64_Pos * 30.0f;
+    public const float C64_To_SM64_Vel = C64_To_SM64_Pos / 30.0f;
     
     private class MarioModel : Model
     {
@@ -60,7 +64,7 @@ public class SM64Player : Player
             state.ApplyToMaterial(material, Matrix.Identity);
         
             material.Texture = marioTexture;
-            material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
+            material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64_Pos) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
             var call = new DrawCommand(state.Camera.Target, mario.Mesh.Mesh, material)
@@ -139,14 +143,14 @@ public class SM64Player : Player
         // Add death plane
         const int DeathPlaneInflate = 10;
         builder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
-            new SM64Vector3f(minX * C64_To_SM64 - DeathPlaneInflate, World.DeathPlane * C64_To_SM64, maxZ * C64_To_SM64 + DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64 + DeathPlaneInflate, World.DeathPlane * C64_To_SM64, maxZ * C64_To_SM64 + DeathPlaneInflate),
-            new SM64Vector3f(minX * C64_To_SM64 - DeathPlaneInflate, World.DeathPlane * C64_To_SM64, minZ * C64_To_SM64 - DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64 + DeathPlaneInflate, World.DeathPlane * C64_To_SM64, minZ * C64_To_SM64 - DeathPlaneInflate));
+            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
+            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
+            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, World.DeathPlane * C64_To_SM64_Pos, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
         
         builder.Build();
 
-        Mario = new Mario(Position.X * C64_To_SM64, Position.Z * C64_To_SM64, Position.Y * C64_To_SM64);
+        Mario = new Mario(Position.X * C64_To_SM64_Pos, Position.Z * C64_To_SM64_Pos, Position.Y * C64_To_SM64_Pos);
         
         // Initial tick to set everything up
         Mario.Tick();
@@ -213,11 +217,20 @@ public class SM64Player : Player
             
             fixed (short* pBuf = audioBuffer)
             {
-                uint writtenSamples = LibSm64Interop.sm64_audio_tick(QueueSize, (uint)audioBuffer.Length, (IntPtr)pBuf);
+                uint writtenSamples = sm64_audio_tick(QueueSize, (uint)audioBuffer.Length, pBuf);
                 audioQueue.Enqueue(pBuf, writtenSamples * 2 * 2);
             }
         } 
         IsOddFrame = !IsOddFrame;
+    }
+
+    public override void Spring(Spring spring)
+    {
+        if (Mario == null)
+            return;
+        
+        Mario.SetAction(SM64Action.TWIRLING);
+        Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
     }
 
     public override void CollectModels(List<(Actor Actor, Model Model)> populate)

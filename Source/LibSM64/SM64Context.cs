@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using static LibSM64.Util.Native;
 
 namespace LibSM64;
 
@@ -47,17 +48,12 @@ public class SM64Context
         sm64_global_terminate();
         GC.SuppressFinalize(this);
     }
-
-    #region Native Interop
-
-    [DllImport("sm64")]
-    private static extern unsafe void sm64_global_init(byte* rom, byte* outTexture);
-
-    [DllImport("sm64")]
-    private static extern void sm64_global_terminate();
-
-    [DllImport("sm64")]
-    private static extern unsafe void sm64_audio_init(byte* rom);
-
-    #endregion
+    
+    public unsafe uint TickAudio(uint numQueuedSamples, uint numDesiredSamples, short[] audioBuffer)
+    {
+        fixed (short* pBuf = audioBuffer)
+        {
+            return sm64_audio_tick(numQueuedSamples, numDesiredSamples, pBuf);
+        }
+    }
 }
