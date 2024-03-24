@@ -107,8 +107,6 @@ public class SM64Player : Player
 
     public override void Added()
     {
-        base.Added();
-        
         var romBytes = File.ReadAllBytes("sm64.z64");
         Context = new SM64Context(romBytes);
         // Context = Sm64Context.InitFromRom(romBytes);
@@ -174,6 +172,12 @@ public class SM64Player : Player
         Audio.Check(coreSystem.playSound(sound, new ChannelGroup(0), false, out _));
         
         SuperMario64Mod.Instance.OnUnloadedCleanup += Dispose;
+        
+        // Setup camera
+        CameraOriginPos = Position;
+        GetCameraTarget(out var orig, out var target, out _);
+        World.Camera.LookAt = target;
+        World.Camera.Position = orig;
     }
     
     private static unsafe RESULT LibSM64Playback(IntPtr _, IntPtr data, uint length)
@@ -196,8 +200,6 @@ public class SM64Player : Player
 
     public override unsafe void Update()
     {
-        base.Update();
-        
         if (Mario == null)
             return;
         
@@ -207,10 +209,35 @@ public class SM64Player : Player
         Mario.Gamepad.BButtonDown = Controls.Dash.Down;
         Mario.Gamepad.ZButtonDown = Controls.Climb.Down;
         
+        // Rotate Camera
+        {
+            var invertX = Save.Instance.InvertCamera == Save.InvertCameraOptions.X || Save.Instance.InvertCamera == Save.InvertCameraOptions.Both;
+            var rot = new Vec2(CameraTargetForward.X, CameraTargetForward.Y).Angle();
+            rot -= Controls.Camera.Value.X * Time.Delta * 4 * (invertX ? -1 : 1);
+
+            var angle = Calc.AngleToVector(rot);
+            CameraTargetForward = new(angle, 0);
+        }
+
+        // Move Camera in / out
+        if (Controls.Camera.Value.Y != 0)
+        {
+            var invertY = Save.Instance.InvertCamera == Save.InvertCameraOptions.Y || Save.Instance.InvertCamera == Save.InvertCameraOptions.Both;
+            CameraTargetDistance += Controls.Camera.Value.Y * Time.Delta * (invertY ? -1 : 1);
+            CameraTargetDistance = Calc.Clamp(CameraTargetDistance, 0, 1);
+        }
+        else
+        {
+            const float interval = 1f / 3;
+            const float threshold = .1f;
+            if (CameraTargetDistance % interval < threshold || CameraTargetDistance % interval > interval - threshold)
+                Calc.Approach(ref CameraTargetDistance, Calc.Snap(CameraTargetDistance, interval), Time.Delta / 2);
+        }
+        
         GetCameraTarget(out var cameraLookAt, out var cameraPosition, out _);
         Mario.Gamepad.CameraLook.X = cameraLookAt.X - cameraPosition.X;
         Mario.Gamepad.CameraLook.Y = cameraLookAt.Y - cameraPosition.Y;
-        
+
         if (IsOddFrame)
         {
             Mario.Tick();
@@ -231,6 +258,16 @@ public class SM64Player : Player
         
         Mario.SetAction(SM64Action.TWIRLING);
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
+    }
+
+    public override void ValidateTransformations()
+    {
+        // We don't know if something changed, so we always update
+        matrix = Matrix.CreateTranslation(Position);
+        worldBounds = BoundingBox.Transform(localBounds, matrix);
+        forward = Vec3.TransformNormal(-Vec3.UnitY, matrix);
+
+        Transformed();
     }
 
     public override void CollectModels(List<(Actor Actor, Model Model)> populate)
