@@ -17,12 +17,16 @@ out vec3 v_world;
 
 void main(void)
 {
-	gl_Position = u_mvp * vec4(a_position, 1.0);
+    // In SM64 the coords are +Y up instead of +Z up
+    vec3 pos = a_position.xzy;
+    vec3 norm = a_normal.xzy;
+    
+	gl_Position = u_mvp * vec4(pos, 1.0);
 
-	v_normal = TransformNormal(a_normal, u_model);
+	v_normal = TransformNormal(norm, u_model);
     v_color = a_color;
 	v_tex = a_tex;
-	v_world = vec3(u_model * vec4(a_position, 1.0));
+	v_world = vec3(u_model * vec4(pos, 1.0));
 }
 
 FRAGMENT:
@@ -62,7 +66,7 @@ void main(void)
 	float depth = LinearizeDepth(gl_FragCoord.z, u_near, u_far);
 	float fall = Map(v_world.z, 50, 0, 0, 1);
 	float fade = Map(depth, 0.9, 1, 1, 0);
-	vec3 col = mix(v_color.rbg, src.rgb, src.a); // SM64 uses the RBGA32 format
+	vec3 col = mix(v_color.rgb, src.rgb, src.a);
 
 	// apply depth values
 	gl_FragDepth = depth;

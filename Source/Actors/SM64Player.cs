@@ -7,14 +7,28 @@ using static LibSM64.Util.Native;
 
 namespace Celeste64.Mod.SuperMario64;
 
+public static class SM64VectorExtensions
+{
+    // !! IMPORTANT !! In SM64 Y and Z are flipped compared to C64.
+    
+    public static Vec2 AsVec2(this SM64Vector2f vec) => new(vec.x, vec.y);
+    public static Vec3 AsVec3(this SM64Vector3f vec) => new(vec.x, vec.z, vec.y);
+    
+    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * SM64Player.SM64_To_C64, vec.y * SM64Player.SM64_To_C64);
+    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64, vec.z * SM64Player.SM64_To_C64, vec.y * SM64Player.SM64_To_C64); 
+    
+    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64, vec.Y * SM64Player.C64_To_SM64);
+    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64, vec.Z * SM64Player.C64_To_SM64, vec.Y * SM64Player.C64_To_SM64);
+}
+
 public class SM64Player : Player
 {
     /// <summary>
     /// A single unit in SM64 and C64 are different sizes.
     /// These constants transform a SM64 unit into a C64 one or vice versa.
     /// </summary>
-    private const float SM64_To_C64 = 0.075f;
-    private const float C64_To_SM64 = 1.0f / SM64_To_C64;
+    public const float SM64_To_C64 = 0.075f;
+    public const float C64_To_SM64 = 1.0f / SM64_To_C64;
     
     private class MarioModel : Model
     {
@@ -46,7 +60,7 @@ public class SM64Player : Player
             state.ApplyToMaterial(material, Matrix.Identity);
         
             material.Texture = marioTexture;
-            material.Model = Matrix.CreateTranslation(-mario.Position.ToVec3()) * Matrix.CreateScale(SM64_To_C64) * Matrix.CreateTranslation(mario.Position.ToVec3() * SM64_To_C64);
+            material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
             var call = new DrawCommand(state.Camera.Target, mario.Mesh.Mesh, material)
@@ -82,8 +96,8 @@ public class SM64Player : Player
     /// </summary>
     private bool IsOddFrame = false;
 
-    public override Vec3 Position => Mario != null ? Mario.Position.ToVec3() * SM64_To_C64 : position;
-    public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToVec3() * SM64_To_C64 : velocity;
+    public override Vec3 Position => Mario != null ? Mario.Position.ToC64Vec3() : position;
+    public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToC64Vec3() : velocity;
 
     private FMOD.Sound sound;
 
@@ -110,9 +124,9 @@ public class SM64Player : Player
                 for (int i = 0; i < face.VertexCount - 2; i ++)
                 {
                     builder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
-                        (verts[face.VertexStart + 0] * C64_To_SM64).ToSM64Vec3(),
-                        (verts[face.VertexStart + 2 + i] * C64_To_SM64).ToSM64Vec3(),
-                        (verts[face.VertexStart + 1 + i] * C64_To_SM64).ToSM64Vec3());
+                        verts[face.VertexStart + 0].ToSM64Vec3(),
+                        verts[face.VertexStart + 2 + i].ToSM64Vec3(),
+                        verts[face.VertexStart + 1 + i].ToSM64Vec3());
                 }
             }
             

@@ -6,12 +6,12 @@ namespace LibSM64;
 public class MarioMesh
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct MarioVertex(Vec3 position, Vec3 normal, Vec3 color, Vec2 texcoord) : IVertex
+    private struct MarioVertex(SM64Vector3f position, SM64Vector3f normal, SM64Vector3f color, SM64Vector2f texcoord) : IVertex
     {
-        public Vec3 Pos = position;
-        public Vec3 Normal = normal;
-        public Vec3 Col = color;
-        public Vec2 Tex = texcoord;
+        public SM64Vector3f Pos = position;
+        public SM64Vector3f Normal = normal;
+        public SM64Vector3f Col = color;
+        public SM64Vector2f Tex = texcoord;
 
         public VertexFormat Format => VertexFormat;
 
@@ -55,10 +55,10 @@ public class MarioMesh
     {
         for (int i = 0; i < triangleCount * 3; i++)
         {
-            vertices[i].Pos = PositionsBuffer[i].ToVec3();
-            vertices[i].Normal = NormalsBuffer[i].ToVec3();
-            vertices[i].Col = ColorsBuffer[i].ToVec3();
-            vertices[i].Tex = UvsBuffer[i].ToVec2();
+            vertices[i].Pos = PositionsBuffer[i];
+            vertices[i].Normal = NormalsBuffer[i];
+            vertices[i].Col = ColorsBuffer[i];
+            vertices[i].Tex = UvsBuffer[i];
         }
         Mesh.SetVertices<MarioVertex>(vertices);
         
