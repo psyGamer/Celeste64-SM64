@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FMOD;
 using LibSM64;
@@ -101,6 +102,21 @@ public class SM64Player : Player
 
     public override Vec3 Position => Mario != null ? Mario.Position.ToC64Vec3() : position;
     public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToC64Vec3() : velocity;
+    public override Vec2 Facing
+    {
+        get => Calc.AngleToVector(Mario.FaceAngle);
+        set
+        {
+            if (facing == value)
+                return;
+            Log.Info($"Facing = {value}");
+            Log.Info(new StackTrace().ToString());
+            facing = value;
+            Mario.FaceAngle = value.Angle();
+        }
+    }
+
+    public override void SetTargetFacing(Vector2 facing) => Facing = facing;
 
     private FMOD.Sound sound;
 
@@ -193,9 +209,26 @@ public class SM64Player : Player
         base.Destroyed();
         Dispose();
     }
+    
+    private bool inCutscene = false;
 
     public override unsafe void Update()
     {
+        bool cutsceneActive = World.All<Cutscene>().Count() != 0;
+        if (cutsceneActive && !inCutscene)
+        {
+            // Start cutscene
+            Mario.Action = SM64Action.WAITING_FOR_DIALOG;
+        }
+        else if (!cutsceneActive && inCutscene)
+        {
+            // End cutscene
+            Mario.Action = SM64Action.IDLE;
+        }
+
+        // Rotate towards target
+        // Facing = Calc.AngleToVector(Calc.AngleApproach(Facing.Angle(), TargetFacing.Angle(), MathF.Tau * 2 * Time.Delta));
+        
         Mario.Gamepad.Stick.X = -Controls.Move.Value.X;
         Mario.Gamepad.Stick.Y = Controls.Move.Value.Y;
         Mario.Gamepad.AButtonDown = Controls.Jump.Down;
@@ -231,6 +264,31 @@ public class SM64Player : Player
         Mario.Gamepad.CameraLook.X = cameraLookAt.X - cameraPosition.X;
         Mario.Gamepad.CameraLook.Y = cameraLookAt.Y - cameraPosition.Y;
 
+        // Check for NPC interaction
+        if (Mario.ReadyToSpeak)
+        {
+            foreach (var actor in World.All<NPC>())
+            {
+                if (actor is NPC { InteractEnabled: true } npc)
+                {
+                    if ((Position - npc.Position).LengthSquared() < npc.InteractRadius * npc.InteractRadius &&
+                        Vec2.Dot((npc.Position - Position).XY(), TargetFacing) > 0 &&
+                        MathF.Abs(npc.Position.Z - Position.Z) < 2)
+                    {
+                        npc.IsPlayerOver = true;
+
+                        if (Controls.Dash.ConsumePress())
+                        {
+                            npc.Interact(this);
+                            return;
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+        
         if (IsOddFrame)
         {
             Mario.Tick();
@@ -262,12 +320,57 @@ public class SM64Player : Player
                 HoldOnBlackFor = 1.0f,
             });
         }
+    }
+
+    public override void LateUpdate()
+    {
+        // update camera origin position
+        {
+            float ZPad = StateMachine.State == States.Climbing ? 0 : 8;
+            CameraOriginPos.X = Position.X;
+            CameraOriginPos.Y = Position.Y;
+
+            float targetZ;
+            if (OnGround)
+                targetZ = Position.Z;
+            else if (Position.Z < CameraOriginPos.Z)
+                targetZ = Position.Z;
+            else if (Position.Z > CameraOriginPos.Z + ZPad)
+                targetZ = Position.Z - ZPad;
+            else
+                targetZ = CameraOriginPos.Z;
+
+            if (CameraOriginPos.Z != targetZ)
+                CameraOriginPos.Z += (targetZ - CameraOriginPos.Z) * (1 - MathF.Pow(.001f, Time.Delta));
+        }
+
+        // update camera position
+        {
+            Vec3 lookAt, cameraPos;
+
+            if (CameraOverride.HasValue)
+            {
+                lookAt = CameraOverride.Value.LookAt;
+                cameraPos = CameraOverride.Value.Position;
+            }
+            else
+            {
+                GetCameraTarget(out lookAt, out cameraPos, out _);
+            }
+
+            World.Camera.Position += (cameraPos - World.Camera.Position) * (1 - MathF.Pow(0.01f, Time.Delta));
+            World.Camera.LookAt = lookAt;
+
+            float targetFOV = Calc.ClampedMap(velocity.XY().Length(), MaxSpeed * 1.2f, 120, 1, 1.2f);
+
+            World.Camera.FOVMultiplier = Calc.Approach(World.Camera.FOVMultiplier, targetFOV, Time.Delta / 4);
+        }
 
     }
 
     public override void Spring(Spring spring)
     {
-        Mario.SetAction(SM64Action.TWIRLING);
+        Mario.Action = SM64Action.TWIRLING;
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
     }
 

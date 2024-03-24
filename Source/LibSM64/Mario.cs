@@ -39,15 +39,46 @@ public class Mario
         GC.SuppressFinalize(this);
     }
     
-    public SM64Vector3f Position => state.position;
+    public SM64Vector3f Position
+    {
+        get => state.position;
+        set => sm64_set_mario_position(id, value.x, value.y, value.z);
+    }
     public SM64Vector3f Velocity
     {
         get => state.velocity;
         set => sm64_set_mario_velocity(id, value.x, value.y, value.z);
     }
+    public float FaceAngle
+    {
+        get => state.faceAngle;
+        set => sm64_set_mario_faceangle(id, value);
+    }
     
-    public void SetAction(SM64Action action) => sm64_set_mario_action(id, (uint)action);
+    public SM64Action Action
+    {
+        get => (SM64Action)state.action;
+        set => sm64_set_mario_action(id, (uint)value);
+    }
+    
+    public SM64MarioAnimID Animation
+    {
+        get => throw new NotImplementedException();
+        set => sm64_set_mario_animation(id, (int)value);
+    }
+    
     public void Kill() => sm64_mario_kill(id);
+    
+    public bool ReadyToSpeak
+    {
+        get
+        {
+            uint actionGroup = state.action & (uint)SM64Action.GROUP_MASK;
+            return (state.action == (uint)SM64Action.WAITING_FOR_DIALOG || actionGroup == (uint)SM64Action.GROUP_STATIONARY || actionGroup == (uint)SM64Action.GROUP_MOVING)
+                  && (state.action & ((uint)SM64Action.FLAG_RIDING_SHELL | (uint)SM64Action.FLAG_INVULNERABLE)) == 0
+                  && state.action != (uint)SM64Action.FIRST_PERSON;
+        }
+    }
 
     public unsafe void Tick()
     {
