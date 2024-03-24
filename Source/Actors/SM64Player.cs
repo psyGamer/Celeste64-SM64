@@ -51,7 +51,11 @@ public class SM64Player : Player
             // Mario is animated through updated vertices from libsm64
             if (material.Shader != null && material.Shader.Has("u_jointMult"))
                 material.Set("u_jointMult", 0.0f);
-
+            
+            // Use linear filtering, like SM64
+            if (material.Shader != null && material.Shader.Has("u_texture_sampler"))
+                material.Set("u_texture_sampler", new TextureSampler(TextureFilter.Linear, TextureWrap.ClampToEdge, TextureWrap.ClampToEdge));
+            
             Flags = ModelFlags.Default;
         }
         
@@ -60,6 +64,7 @@ public class SM64Player : Player
             state.ApplyToMaterial(material, Matrix.Identity);
         
             material.Texture = SM64Context.MarioTexture;
+            
             material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64_Pos) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
