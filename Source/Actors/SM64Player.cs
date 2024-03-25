@@ -36,7 +36,6 @@ public class SM64Player : Player
     private class MarioModel : Model
     {
         private readonly Mario mario;
-        
         private readonly DefaultMaterial material = new();
         
         public MarioModel(Mario mario)
@@ -65,6 +64,13 @@ public class SM64Player : Player
             state.ApplyToMaterial(material, Matrix.Identity);
         
             material.Texture = SM64Context.MarioTexture;
+            if (material.Shader?.Has("u_cap_state") ?? false)
+            {
+                if (mario.ModelState == SM64ModelState.METAL)
+                    material.Set("u_cap_state", 2.0f);
+                else
+                    material.Set("u_cap_state", 0.0f);
+            }
             
             material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64_Pos) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
@@ -368,14 +374,6 @@ public class SM64Player : Player
     {
         Mario.Action = SM64Action.TWIRLING;
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
-    }
-
-    public override void StCassetteExit()
-    {
-        base.StCassetteExit();
-        // Mario.Action = SM64Action.FREEFALL;
-        // Mario.Velocity = velocity.ToSM64VelocityVec3();
-        // Mario.ForwardVelocity = 0.0f;
     }
 
     public override void Kill()

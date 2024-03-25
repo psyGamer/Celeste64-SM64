@@ -51,6 +51,8 @@ public class Native
         public uint flags;
         public uint particleFlags;
         public short invincTImer;
+        
+        public short bodyModelState;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -1321,7 +1323,35 @@ public class Native
         /* 0xD0 */ TRIPLE_JUMP_FLY
     }
 
-
+    [Flags]
+    public enum SM64CapFlags : uint
+    {
+        NORMAL_CAP                = 0x00000001,
+        VANISH_CAP                = 0x00000002,
+        METAL_CAP                 = 0x00000004,
+        WING_CAP                  = 0x00000008,
+        CAP_ON_HEAD               = 0x00000010,
+        CAP_IN_HAND               = 0x00000020,
+        METAL_SHOCK               = 0x00000040,
+        TELEPORTING               = 0x00000080,
+        UNKNOWN_08                = 0x00000100,
+        UNKNOWN_13                = 0x00002000,
+        ACTION_SOUND_PLAYED       = 0x00010000,
+        MARIO_SOUND_PLAYED        = 0x00020000,
+        UNKNOWN_18                = 0x00040000,
+        PUNCHING                  = 0x00100000,
+        KICKING                   = 0x00200000,
+        TRIPPING                  = 0x00400000,
+        UNKNOWN_25                = 0x02000000,
+        UNKNOWN_30                = 0x40000000,
+        UNKNOWN_31                = 0x80000000,
+    }
+    
+    public enum SM64ModelState : short
+    {
+        NOISE_ALPHA = 0x180,
+        METAL       = 0x200,
+    }
 
     #endregion
 }

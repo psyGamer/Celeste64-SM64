@@ -65,11 +65,20 @@ public class Mario
         get => (SM64Action)state.action;
         set => sm64_set_mario_action(id, (uint)value);
     }
-    
     public SM64MarioAnimID Animation
     {
         get => throw new NotImplementedException();
         set => sm64_set_mario_animation(id, (int)value);
+    }
+    public SM64CapFlags CapFlags
+    {
+        get => (SM64CapFlags)state.flags;
+        set => sm64_set_mario_state(id, (uint)value);
+    }
+    public SM64ModelState ModelState
+    {
+        get => (SM64ModelState)state.bodyModelState;
+        set => throw new NotImplementedException();
     }
     
     public void Kill() => sm64_mario_kill(id);
