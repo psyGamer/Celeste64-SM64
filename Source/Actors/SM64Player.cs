@@ -360,7 +360,8 @@ public class SM64Player : Player
                     CameraOverride = new(cameraPosition, cameraLookAt);
                 }
             
-                if (Mario.Action is not (SM64Action.FALL_AFTER_STAR_GRAB or SM64Action.STAR_DANCE_EXIT or SM64Action.STAR_DANCE_NO_EXIT or SM64Action.STAR_DANCE_WATER))
+                if (Mario.Action is not (SM64Action.FALL_AFTER_STAR_GRAB or SM64Action.STAR_DANCE_EXIT or SM64Action.STAR_DANCE_NO_EXIT or SM64Action.STAR_DANCE_WATER) ||
+                    World.Entry.Submap && Mario is { ActionState: 0, ActionTimer: 80 }) // In SM64 the warp is triggered at 80 of state 0
                 {
                     // Animation is finished
                     LastStrawb = null;
@@ -368,6 +369,19 @@ public class SM64Player : Player
                 
                     World.Destroy(strawb);
                     Save.CurrentRecord.Strawberries.Add(strawb.ID);
+                    
+                    if (World.Entry.Submap)
+                    {
+                        Save.CurrentRecord.CompletedSubMaps.Add(World.Entry.Map);
+                        Game.Instance.Goto(new Transition()
+                        {
+                            Mode = Transition.Modes.Pop,
+                            ToPause = true,
+                            ToBlack = new SpotlightWipe(),
+                            StopMusic = true,
+                            Saving = true
+                        });
+                    }
                 }
             }
         }
@@ -443,7 +457,7 @@ public class SM64Player : Player
         LastStrawb = strawb;
         Position = strawb.Position + Vec3.UnitZ * -3;
         
-        sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, 1);
+        sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, World.Entry.Submap ? 0u : 1u);
     }
 
     public override void Spring(Spring spring)

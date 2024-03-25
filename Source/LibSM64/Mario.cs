@@ -65,6 +65,9 @@ public class Mario
         get => (SM64Action)state.action;
         set => sm64_set_mario_action(id, (uint)value);
     }
+    public ushort ActionState => state.actionState;
+    public ushort ActionTimer => state.actionTimer;
+
     public SM64MarioAnimID Animation
     {
         get => throw new NotImplementedException();

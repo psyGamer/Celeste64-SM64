@@ -53,6 +53,8 @@ public class Native
         public short invincTImer;
         
         public short bodyModelState;
+        public ushort actionState;
+        public ushort actionTimer;
     }
 
     [StructLayout(LayoutKind.Sequential)]
