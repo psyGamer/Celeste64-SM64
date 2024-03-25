@@ -81,8 +81,6 @@ public class Mario
         set => throw new NotImplementedException();
     }
     
-    public void Kill() => sm64_mario_kill(id);
-    
     public bool ReadyToSpeak
     {
         get
@@ -93,6 +91,21 @@ public class Mario
                   && state.action != (uint)SM64Action.FIRST_PERSON;
         }
     }
+    
+    public void InteractCap(SM64CapFlags capFlag, ushort capTime = 0)
+    {
+        // All caps are mutually exclusive
+        var flags = CapFlags;
+        flags &= ~SM64CapFlags.SPECIAL_CAPS;
+        if (!flags.Has(SM64CapFlags.CAPS)) {
+            flags &= ~SM64CapFlags.CAP_ON_HEAD;
+        }
+        CapFlags = flags;
+        
+        sm64_mario_interact_cap(id, (uint)capFlag, capTime, 1);
+    }
+    
+    public void Kill() => sm64_mario_kill(id);
 
     public unsafe void Tick()
     {

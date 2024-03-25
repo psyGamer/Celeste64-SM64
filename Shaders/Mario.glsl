@@ -69,7 +69,8 @@ void main(void)
     
     float alpha = src.a;
     // Set alpha to 1.0 when UV coords are 1|1 -> flat color through vertex color
-    if (v_tex == vec2(1.0))
+    // Or when we're using the metal cap
+    if (v_tex == vec2(1.0) || (int(u_model_state) & ModelStateMetal) != 0)
         alpha = 1.0;
     
     // Ugly special caes for the wing cap:

@@ -1345,6 +1345,9 @@ public class Native
         UNKNOWN_25                = 0x02000000,
         UNKNOWN_30                = 0x40000000,
         UNKNOWN_31                = 0x80000000,
+        
+        SPECIAL_CAPS              = VANISH_CAP | METAL_CAP | WING_CAP,
+        CAPS                      = NORMAL_CAP | SPECIAL_CAPS,
     }
     
     public enum SM64ModelState : short
