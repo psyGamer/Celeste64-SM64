@@ -64,12 +64,14 @@ public class SM64Player : Player
             state.ApplyToMaterial(material, Matrix.Identity);
         
             material.Texture = SM64Context.MarioTexture;
-            if (material.Shader?.Has("u_cap_state") ?? false)
+            if (material.Shader?.Has("u_model_state") ?? false)
             {
+                int modelState = 0;
                 if (mario.ModelState == SM64ModelState.METAL)
-                    material.Set("u_cap_state", 2.0f);
-                else
-                    material.Set("u_cap_state", 0.0f);
+                    modelState |= 1;
+                if (mario.ModelState == SM64ModelState.NOISE_ALPHA)
+                    modelState |= 2;
+                material.Set("u_model_state", (float)modelState);
             }
             
             material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64_Pos) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
