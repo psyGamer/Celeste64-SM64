@@ -13,7 +13,7 @@ public class Mario
         public bool ZButtonDown;
     }
     
-    private readonly int id;
+    public readonly int id;
     
     private SM64MarioState state;
     

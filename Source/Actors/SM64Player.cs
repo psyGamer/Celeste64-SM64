@@ -74,7 +74,9 @@ public class SM64Player : Player
                 material.Set("u_model_state", (float)modelState);
             }
             
-            material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * Matrix.CreateScale(SM64_To_C64_Pos) * Matrix.CreateTranslation(mario.Position.ToC64Vec3());
+            material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * 
+                             Matrix.CreateScale(SM64_To_C64_Pos) *
+                             Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
             var call = new DrawCommand(state.Camera.Target, mario.Mesh.Mesh, material)
@@ -202,6 +204,7 @@ public class SM64Player : Player
     }
     
     private bool inCutscene = false;
+    private bool startedStrawbDance = false;
 
     public override void Update()
     {
@@ -217,8 +220,28 @@ public class SM64Player : Player
             Mario.Action = SM64Action.IDLE;
         }
         
-        Mario.Gamepad.Stick.X = -Controls.Move.Value.X;
-        Mario.Gamepad.Stick.Y = Controls.Move.Value.Y;
+        if (Input.Keyboard.Pressed(Keys.P))
+            Mario.InteractCap(SM64CapFlags.WING_CAP);
+        if (Input.Keyboard.Pressed(Keys.O))
+            Mario.InteractCap(SM64CapFlags.METAL_CAP);
+        if (Input.Keyboard.Pressed(Keys.I))
+            Mario.InteractCap(SM64CapFlags.VANISH_CAP);
+        
+        if (Input.Keyboard.Pressed(Keys.J))
+        {
+            // Mario.Action = SM64Action.STAR_DANCE_NO_EXIT;
+            sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, 1);
+        }
+        
+        Mario.Gamepad.Stick.X = Controls.Move.Value.X;
+        Mario.Gamepad.Stick.Y = -Controls.Move.Value.Y;
+        if (Mario.Action == SM64Action.FLYING)
+        {
+            // For some reason the controls are inverted while flying with the wing cap???
+            Mario.Gamepad.Stick.X *= -1.0f;
+            Mario.Gamepad.Stick.Y *= -1.0f;
+        }
+        
         Mario.Gamepad.AButtonDown = Controls.Jump.Down;
         Mario.Gamepad.BButtonDown = Controls.Dash.Down;
         Mario.Gamepad.ZButtonDown = Controls.Climb.Down;
@@ -249,8 +272,8 @@ public class SM64Player : Player
         }
         
         GetCameraTarget(out var cameraLookAt, out var cameraPosition, out _);
-        Mario.Gamepad.CameraLook.X = cameraLookAt.X - cameraPosition.X;
-        Mario.Gamepad.CameraLook.Y = cameraLookAt.Y - cameraPosition.Y;
+        Mario.Gamepad.CameraLook.X = cameraPosition.X - cameraLookAt.X;
+        Mario.Gamepad.CameraLook.Y = cameraPosition.Y - cameraLookAt.Y;
 
         // Check for NPC interaction
         if (Mario.ReadyToSpeak)
@@ -285,7 +308,17 @@ public class SM64Player : Player
                 {
                     if ((SolidWaistTestPos - actor.Position).LengthSquared() < pickup.PickupRadius * pickup.PickupRadius)
                     {
-                        pickup.Pickup(this);
+                        // TODO: Probably patch out the C64 collect SFX with an IL hook instead
+                        if (pickup is Strawberry strawbPickup && !strawbPickup.IsCollected && !strawbPickup.IsCollecting && !strawbPickup.IsLocked)
+                        {
+                            strawbPickup.IsCollecting = true;
+                            StrawbGet(strawbPickup);
+                        }
+                        else
+                        {
+                            pickup.Pickup(this);
+                        }
+                        
                         ModManager.Instance.OnItemPickup(this, pickup);
                     }
                 }
@@ -301,10 +334,43 @@ public class SM64Player : Player
         if (IsOddFrame)
         {
             if (StateMachine.State != States.Cassette)
+            {
                 Mario.Tick();
+            }
             AudioPlayer.ShouldTick = true;
         } 
         IsOddFrame = !IsOddFrame;
+        
+        // Strawb dance 
+        if (LastStrawb is { } strawb)
+        {
+            // Always be over Mario's head
+            strawb.Position = Position + Vec3.UnitZ * 17.0f;
+            
+            // Wait until we're in a star dance state
+            if (!startedStrawbDance)
+            {
+                startedStrawbDance = Mario.Action is SM64Action.FALL_AFTER_STAR_GRAB or SM64Action.STAR_DANCE_EXIT or SM64Action.STAR_DANCE_NO_EXIT or SM64Action.STAR_DANCE_WATER;
+            }
+            else
+            {
+                if (CameraOverride != null && Mario.Action is not (SM64Action.FALL_AFTER_STAR_GRAB))
+                {
+                    // Lock camera once we finished falling
+                    CameraOverride = new(cameraPosition, cameraLookAt);
+                }
+            
+                if (Mario.Action is not (SM64Action.FALL_AFTER_STAR_GRAB or SM64Action.STAR_DANCE_EXIT or SM64Action.STAR_DANCE_NO_EXIT or SM64Action.STAR_DANCE_WATER))
+                {
+                    // Animation is finished
+                    LastStrawb = null;
+                    CameraOverride = null;
+                
+                    World.Destroy(strawb);
+                    Save.CurrentRecord.Strawberries.Add(strawb.ID);
+                }
+            }
+        }
         
         // Death plane
         if (Position.Z < World.DeathPlane)
@@ -370,6 +436,14 @@ public class SM64Player : Player
 
             World.Camera.FOVMultiplier = Calc.Approach(World.Camera.FOVMultiplier, targetFOV, Time.Delta / 4);
         }
+    }
+
+    public override void StrawbGet(Strawberry strawb)
+    {
+        LastStrawb = strawb;
+        Position = strawb.Position + Vec3.UnitZ * -3;
+        
+        sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, 1);
     }
 
     public override void Spring(Spring spring)
