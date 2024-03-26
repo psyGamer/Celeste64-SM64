@@ -215,41 +215,64 @@ public class SM64Player : Player
         
         staticBuilder.BuildStatic();
         
-        foreach (var solid in solids)
+        // Only include solids which already exist. Added/Destroyed is handled inside the hooks
+        foreach (var solid in world.All<Solid>().Cast<Solid>())
         {
-            // Only generate for dynamic actor geometry
-            if (solid.GetType() == typeof(Solid))
-                continue;
-            
-            var objectBuilder = new CollisionMeshBuilder();
-            
-            var verts = solid.LocalVertices;
-            foreach (var face in solid.LocalFaces)
-            {
-                // Triangulate the mesh
-                for (int i = 0; i < face.VertexCount - 2; i ++)
-                {
-                    objectBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.SAND,
-                        verts[face.VertexStart + 0].ToSM64Vec3(),
-                        verts[face.VertexStart + 2 + i].ToSM64Vec3(),
-                        verts[face.VertexStart + 1 + i].ToSM64Vec3());
-                }
-            }
-            
-            var dynamicMesh = objectBuilder.BuildDynamic(new SM64ObjectTransform()
-            {
-                position = solid.Position.ToSM64Vec3(),
-                eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
-            }); 
-            
-            if (solid is IDashTrigger dashTrigger)
-            {
-                Log.Info($"Registered {solid} @ {dynamicMesh.ObjectID}");
-                breakableObjects.Add(dynamicMesh.ObjectID, solid);
-            }
-            
-            dynamicMeshes.Add(solid, dynamicMesh);
+            CreateDynamicObjectMesh(solid);
         }
+    }
+    
+    [On.Celeste64.Actor.Added]
+    private static void On_Actor_Added(On.Celeste64.Actor.orig_Added orig, Actor self)
+    {
+        orig(self);
+        
+        if (self is Solid solid)
+            CreateDynamicObjectMesh(solid);
+    }
+    
+    [On.Celeste64.Solid.Destroyed]
+    private static void On_Solid_Destroyed(On.Celeste64.Solid.orig_Destroyed orig, Solid self)
+    {
+        if (dynamicMeshes.Remove(self, out var dynamicMesh))
+            dynamicMesh.Dispose();
+        orig(self);
+    }
+    
+    private static void CreateDynamicObjectMesh(Solid solid)
+    {
+        // Only generate for dynamic actor geometry
+        if (solid.GetType() == typeof(Solid))
+            return;
+            
+        var objectBuilder = new CollisionMeshBuilder();
+            
+        var verts = solid.LocalVertices;
+        foreach (var face in solid.LocalFaces)
+        {
+            // Triangulate the mesh
+            for (int i = 0; i < face.VertexCount - 2; i ++)
+            {
+                objectBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.SAND,
+                    verts[face.VertexStart + 0].ToSM64Vec3(),
+                    verts[face.VertexStart + 2 + i].ToSM64Vec3(),
+                    verts[face.VertexStart + 1 + i].ToSM64Vec3());
+            }
+        }
+            
+        var dynamicMesh = objectBuilder.BuildDynamic(new SM64ObjectTransform()
+        {
+            position = solid.Position.ToSM64Vec3(),
+            eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
+        }); 
+            
+        if (solid is IDashTrigger dashTrigger)
+        {
+            Log.Info($"Registered {solid} @ {dynamicMesh.ObjectID}");
+            breakableObjects.Add(dynamicMesh.ObjectID, solid);
+        }
+            
+        dynamicMeshes.Add(solid, dynamicMesh);
     }
     
     [On.Celeste64.Actor.ValidateTransformations]
@@ -326,8 +349,6 @@ public class SM64Player : Player
                     Log.Info($"Hit {((SM64SurfaceCollisionData*)colData.walls[i])->objId}");
                     if (breakableObjects.TryGetValue(((SM64SurfaceCollisionData*)colData.walls[i])->objId, out var solid))
                     {
-                        // TODO: For some reason they don't have a world attached???
-                        solid.world = World;
                         // They have been checked to be an IDashTrigger when added to the dict
                         ((IDashTrigger)solid).HandleDash(handVelocity); 
                     }
