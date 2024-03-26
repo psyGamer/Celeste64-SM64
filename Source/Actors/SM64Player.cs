@@ -7,8 +7,10 @@ public static class SM64VectorExtensions
 {
     // !! IMPORTANT !! In SM64 Y and Z are flipped compared to C64.
     
-    public static Vec2 AsVec2(this SM64Vector2f vec) => new(vec.x, vec.y);
-    public static Vec3 AsVec3(this SM64Vector3f vec) => new(vec.x, vec.z, vec.y);
+    public static Vec2 AsC64Vec2(this SM64Vector2f vec) => new(vec.x, vec.y);
+    public static Vec3 AsC64Vec3(this SM64Vector3f vec) => new(vec.x, vec.z, vec.y);
+    public static SM64Vector2f AsSM64Vec2(this Vec2 vec) => new(vec.X, vec.Y);
+    public static SM64Vector3f AsSM64Vec3(this Vec3 vec) => new(vec.X, vec.Z, vec.Y);
     
     public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * SM64Player.SM64_To_C64_Pos, vec.y * SM64Player.SM64_To_C64_Pos);
     public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64_Pos, vec.z * SM64Player.SM64_To_C64_Pos, vec.y * SM64Player.SM64_To_C64_Pos); 
@@ -74,7 +76,7 @@ public class SM64Player : Player
                 material.Set("u_model_state", (float)modelState);
             }
             
-            material.Model = Matrix.CreateTranslation(-mario.Position.AsVec3()) * 
+            material.Model = Matrix.CreateTranslation(-mario.Position.AsC64Vec3()) * 
                              Matrix.CreateScale(SM64_To_C64_Pos) *
                              Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
@@ -158,9 +160,15 @@ public class SM64Player : Player
         Dispose();
     }
     
+    private static readonly Dictionary<Solid, DynamicCollisionMesh> dynamicMeshes = [];
     public static void GenerateSolids(World world)
     {
-        var builder = new StaticCollisionMesh.Builder();
+        // Cleanup old data. Static geometry will just get overwritten entirely
+        foreach (var dynamicMesh in dynamicMeshes.Values)
+            dynamicMesh.Dispose();
+        dynamicMeshes.Clear();
+        
+        var staticBuilder = new CollisionMeshBuilder();
 
         // Bounding box of all solids combined
         float minX = 0, maxX = 0, minZ = 0, maxZ = 0;
@@ -176,13 +184,12 @@ public class SM64Player : Player
                 continue;
             
             var verts = solid.WorldVertices;
-
             foreach (var face in solid.WorldFaces)
             {
                 // Triangulate the mesh
                 for (int i = 0; i < face.VertexCount - 2; i ++)
                 {
-                    builder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
+                    staticBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
                         verts[face.VertexStart + 0].ToSM64Vec3(),
                         verts[face.VertexStart + 2 + i].ToSM64Vec3(),
                         verts[face.VertexStart + 1 + i].ToSM64Vec3());
@@ -198,13 +205,56 @@ public class SM64Player : Player
         // Add death plane
         const int DeathPlaneInflate = (int)(10 * C64_To_SM64_Pos);
         const int DeathPlaneOffset = (int)(100 * C64_To_SM64_Pos);
-        builder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
+        staticBuilder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
             new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
             new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
             new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
             new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
         
-        builder.Build();
+        staticBuilder.BuildStatic();
+        
+        foreach (var solid in solids)
+        {
+            // Only generate for dynamic actor geometry
+            if (solid.GetType() == typeof(Solid))
+                continue;
+            
+            var objectBuilder = new CollisionMeshBuilder();
+            
+            var verts = solid.LocalVertices;
+            foreach (var face in solid.LocalFaces)
+            {
+                // Triangulate the mesh
+                for (int i = 0; i < face.VertexCount - 2; i ++)
+                {
+                    objectBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
+                        verts[face.VertexStart + 0].ToSM64Vec3(),
+                        verts[face.VertexStart + 2 + i].ToSM64Vec3(),
+                        verts[face.VertexStart + 1 + i].ToSM64Vec3());
+                }
+            }
+            
+            dynamicMeshes.Add(solid, objectBuilder.BuildDynamic(new SM64ObjectTransform()
+            {
+                position = solid.Position.ToSM64Vec3(),
+                eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
+            }));
+        }
+    }
+    
+    [On.Celeste64.Actor.ValidateTransformations]
+    private static void On_Actor_ValidateTransformations(On.Celeste64.Actor.orig_ValidateTransformations orig, Actor self)
+    {
+        if (self.dirty && self is Solid solid && dynamicMeshes.TryGetValue(solid, out var dynamicMesh))
+        {
+            dynamicMesh.Move(new SM64ObjectTransform()
+            {
+                position = solid.Position.ToSM64Vec3(),
+                eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
+            });
+        }
+        
+        orig(self);
     }
     
     private bool inCutscene = false;

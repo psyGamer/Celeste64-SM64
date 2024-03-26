@@ -33,6 +33,21 @@ public class Native
     }
     
     [StructLayout(LayoutKind.Sequential)]
+    public struct SM64ObjectTransform
+    {
+        public SM64Vector3f position;
+        public SM64Vector3f eulerRotation;
+    };
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SM64SurfaceObject
+    {
+        public SM64ObjectTransform transform;
+        public uint surfaceCount;
+        public unsafe SM64Surface* surfaces;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
     public struct SM64MarioInputs
     {
         public float camLookX, camLookZ;
@@ -136,6 +151,13 @@ public class Native
     public static extern void sm64_mario_extend_cap(int marioId, ushort capTime);
     [DllImport(SM64_LIB)]
     public static extern bool sm64_mario_attack(int marioId, float x, float y, float z, float hitboxHeight);
+    
+    [DllImport(SM64_LIB)]
+    public static extern uint sm64_surface_object_create(ref SM64SurfaceObject surfaceObject);
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_surface_object_move(uint objectId, ref SM64ObjectTransform transform);
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_surface_object_delete(uint objectId);
     
     [DllImport(SM64_LIB)]
     public static extern unsafe void sm64_play_sound(int soundBits, SM64Vector3f* pos);
