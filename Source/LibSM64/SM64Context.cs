@@ -65,17 +65,16 @@ public static class SM64Context
             radius = radius,
         };
         
-        if (sm64_surface_find_wall_collisions(ref colData) == 0)
-            return [];
-        
-        var surfaces = new SM64SurfaceCollisionData*[colData.numWalls];
-        fixed (IntPtr* pSrc = colData.walls)
-        fixed (SM64SurfaceCollisionData** pDst = surfaces)
+        int wallCount = sm64_surface_find_wall_collisions(ref colData);
+        return wallCount switch
         {
-            NativeMemory.Copy(pSrc, pDst, (UIntPtr)colData.numWalls);
-        }
-        
-        return surfaces;
+            // Could this be done programatically? Probably
+            0 => [],
+            1 => [(SM64SurfaceCollisionData*)colData.walls[0]],
+            2 => [(SM64SurfaceCollisionData*)colData.walls[0], (SM64SurfaceCollisionData*)colData.walls[1]],
+            3 => [(SM64SurfaceCollisionData*)colData.walls[0], (SM64SurfaceCollisionData*)colData.walls[1], (SM64SurfaceCollisionData*)colData.walls[2]],
+            // There will never be more than 4 walls
+        };
     }
     
     public static unsafe uint TickAudio(uint numQueuedSamples, uint numDesiredSamples, short[] audioBuffer)

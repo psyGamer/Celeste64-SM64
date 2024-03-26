@@ -33,7 +33,7 @@ public class MarioMesh
     internal readonly SM64Vector3f[] PositionsBuffer = new SM64Vector3f[SM64_GEO_MAX_VERTICES];
     internal readonly SM64Vector3f[] NormalsBuffer = new SM64Vector3f[SM64_GEO_MAX_VERTICES];
     internal readonly SM64Vector3f[] ColorsBuffer = new SM64Vector3f[SM64_GEO_MAX_VERTICES];
-    internal readonly SM64Vector2f[] UvsBuffer = new SM64Vector2f[SM64_GEO_MAX_VERTICES];
+    internal readonly SM64Vector2f[] UVsBuffer = new SM64Vector2f[SM64_GEO_MAX_VERTICES];
     
     private readonly MarioVertex[] vertices = new MarioVertex[SM64_GEO_MAX_VERTICES];
     
@@ -58,7 +58,7 @@ public class MarioMesh
             vertices[i].Pos = PositionsBuffer[i];
             vertices[i].Normal = NormalsBuffer[i];
             vertices[i].Col = ColorsBuffer[i];
-            vertices[i].Tex = UvsBuffer[i];
+            vertices[i].Tex = UVsBuffer[i];
         }
         Mesh.SetVertices<MarioVertex>(vertices);
         

@@ -126,14 +126,14 @@ public class Mario
         fixed (SM64Vector3f* pPos = Mesh.PositionsBuffer)
         fixed (SM64Vector3f* pNormal = Mesh.NormalsBuffer)
         fixed (SM64Vector3f* pColor = Mesh.ColorsBuffer)
-        fixed (SM64Vector2f* pUV = Mesh.UvsBuffer)
+        fixed (SM64Vector2f* pUV = Mesh.UVsBuffer)
         {
             var buffers = new SM64MarioGeometryBuffers
             {
-                position = (IntPtr)pPos,
-                normal = (IntPtr)pNormal,
-                color = (IntPtr)pColor,
-                uv = (IntPtr)pUV,
+                position = pPos,
+                normal = pNormal,
+                color = pColor,
+                uv = pUV,
             };
 
             sm64_mario_tick(id, ref inputs, ref state, ref buffers);

@@ -75,10 +75,10 @@ public class Native
     [StructLayout(LayoutKind.Sequential)]
     public struct SM64MarioGeometryBuffers
     {
-        public IntPtr position;
-        public IntPtr normal;
-        public IntPtr color;
-        public IntPtr uv;
+        public unsafe SM64Vector3f* position;
+        public unsafe SM64Vector3f* normal;
+        public unsafe SM64Vector3f* color;
+        public unsafe SM64Vector2f* uv;
         public ushort numTrianglesUsed;
     }
     
@@ -128,8 +128,18 @@ public class Native
         public short numWalls;
         
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        //public unsafe SM64SurfaceCollisionData*[] walls;
+        // public unsafe SM64SurfaceCollisionData*[] walls;
         public IntPtr[] walls;
+    };
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SM64FloorCollisionData
+    {
+        private unsafe fixed float unused[4];
+        public float normalX;
+        public float normalY;
+        public float normalZ;
+        public float originOffset;
     };
 
     #endregion
@@ -210,12 +220,38 @@ public class Native
     public static extern void sm64_surface_object_delete(uint objectId);
     
     [DllImport(SM64_LIB)]
+    public static extern int sm64_surface_find_wall_collision(ref float xPtr, ref float yPtr, ref float zPtr, float offsetY, float radius);
+    [DllImport(SM64_LIB)]
     public static extern int sm64_surface_find_wall_collisions(ref SM64WallCollisionData colData);
-
+    [DllImport(SM64_LIB)]
+    public static extern unsafe float sm64_surface_find_ceil(float posX, float posY, float posZ, ref SM64SurfaceCollisionData* pceil);
+    [DllImport(SM64_LIB)]
+    public static extern unsafe float sm64_surface_find_floor_height_and_data(float xPos, float yPos, float zPos, ref SM64FloorCollisionData* floorGeo);
+    [DllImport(SM64_LIB)]
+    public static extern float sm64_surface_find_floor_height(float x, float y, float z);
+    [DllImport(SM64_LIB)]
+    public static extern unsafe float sm64_surface_find_floor(float xPos, float yPos, float zPos, ref SM64SurfaceCollisionData* pfloor);
+    [DllImport(SM64_LIB)]
+    public static extern float sm64_surface_find_water_level(float x, float z);
+    [DllImport(SM64_LIB)]
+    public static extern float sm64_surface_find_poison_gas_level(float x, float z);
+    
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_seq_player_play_sequence(byte player, byte seqId, ushort arg2);
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_play_music(byte player, ushort seqArgs, ushort fadeTimer);
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_stop_background_music(ushort seqId);
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_fadeout_background_music(ushort arg0, ushort fadeOut);
+    [DllImport(SM64_LIB)]
+    public static extern ushort sm64_get_current_background_music();
     [DllImport(SM64_LIB)]
     public static extern unsafe void sm64_play_sound(int soundBits, SM64Vector3f* pos);
     [DllImport(SM64_LIB)]
     public static extern void sm64_play_sound_global(int soundBits);
+    [DllImport(SM64_LIB)]
+    public static extern void sm64_set_sound_volume(float vol);
     
     #endregion
     
