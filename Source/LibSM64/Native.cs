@@ -60,16 +60,20 @@ public class Native
     {
         public SM64Vector3f position;
         public SM64Vector3f velocity;
-        public float faceAngle;
+        public float forwardVelocity;
+        public SM64Vector3f faceAngle;
         public short health;
         public uint action;
-        public uint flags;
-        public uint particleFlags;
-        public short invincTImer;
-        
-        public short bodyModelState;
         public ushort actionState;
         public ushort actionTimer;
+        public uint flags;
+        public uint particleFlags;
+        public short invincTimer;
+        public short animationID;
+        public short animationFrame;
+        public int waterLevel;
+        public int gasLevel;
+        public short bodyModelState;
     }
 
     [StructLayout(LayoutKind.Sequential)]
