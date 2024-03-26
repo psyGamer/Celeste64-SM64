@@ -8,6 +8,11 @@ public class SuperMario64Mod : GameMod
 {
     public static SuperMario64Mod Instance { get; private set; } = null!;
     
+    /// <summary>
+    /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
+    /// </summary>
+    public static bool IsOddFrame { get; private set; } = false;
+    
     public SuperMario64Mod()
     {
         Instance = this;
@@ -26,6 +31,7 @@ public class SuperMario64Mod : GameMod
     }
     public override void Update(float deltaTime)
     {
+        IsOddFrame = !IsOddFrame;
         AudioPlayer.Update();
     }
 

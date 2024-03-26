@@ -99,11 +99,6 @@ public class SM64Player : Player
     private Mario Mario = null!;
     private MarioModel MarioPlayerModel = null!;
     
-    /// <summary>
-    /// SM64 runs at 30FPS but C64 at 60FPS, so we need to skip every odd frame.
-    /// </summary>
-    private bool IsOddFrame = false;
-
     // Mario is technically null, until the player is Added
     public override Vec3 Position
     {
@@ -315,6 +310,11 @@ public class SM64Player : Player
         if (Input.Keyboard.Pressed(Keys.I))
             Mario.InteractCap(SM64MarioFlags.VANISH_CAP);
         
+        if (Input.Keyboard.Pressed(Keys.K))
+            SM64Context.PlayMusic(SM64SeqPlayer.LEVEL, SM64SeqId.LEVEL_BOSS_KOOPA_FINAL);
+        if (Input.Keyboard.Pressed(Keys.J))
+            SM64Context.PlaySound(SM64Sound.MARIO_SO_LONGA_BOWSER, Mario.Position);
+        
         // Reimplemented check_kick_or_punch_wall() from libsm64 src/decomp/game/interaction.c
         // We don't set any state (since libsm64 already does that) but only check for collisions with breakable blocks
         if (Mario.Flags.Has(SM64MarioFlags.PUNCHING | SM64MarioFlags.KICKING | SM64MarioFlags.TRIPPING)) {
@@ -438,15 +438,10 @@ public class SM64Player : Player
             StateMachine.Update();
         }
         
-        if (IsOddFrame)
+        if (!SuperMario64Mod.IsOddFrame && StateMachine.State != States.Cassette)
         {
-            if (StateMachine.State != States.Cassette)
-            {
-                Mario.Tick();
-            }
-            AudioPlayer.ShouldTick = true;
+            Mario.Tick();
         } 
-        IsOddFrame = !IsOddFrame;
         
         // Strawb dance 
         if (LastStrawb is { } strawb)

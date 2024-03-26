@@ -1472,6 +1472,51 @@ public class Native
         NOISE_ALPHA = 0x180,
         METAL       = 0x200,
     }
+    
+    public enum SM64SeqPlayer : byte
+    {
+        LEVEL = 0,  // Level background music
+        ENV   = 1,  // Misc music like the puzzle jingle
+        SFX   = 2,  // Sound effects
+    }
+    
+    public enum SM64SeqId : byte {
+        SOUND_PLAYER                 = 0x00,
+        EVENT_CUTSCENE_COLLECT_STAR  = 0x01,
+        MENU_TITLE_SCREEN            = 0x02,
+        LEVEL_GRASS                  = 0x03,
+        LEVEL_INSIDE_CASTLE          = 0x04,
+        LEVEL_WATER                  = 0x05,
+        LEVEL_HOT                    = 0x06,
+        LEVEL_BOSS_KOOPA             = 0x07,
+        LEVEL_SNOW                   = 0x08,
+        LEVEL_SLIDE                  = 0x09,
+        LEVEL_SPOOKY                 = 0x0A,
+        EVENT_PIRANHA_PLANT          = 0x0B,
+        LEVEL_UNDERGROUND            = 0x0C,
+        MENU_STAR_SELECT             = 0x0D,
+        EVENT_POWERUP                = 0x0E,
+        EVENT_METAL_CAP              = 0x0F,
+        EVENT_KOOPA_MESSAGE          = 0x10,
+        LEVEL_KOOPA_ROAD             = 0x11,
+        EVENT_HIGH_SCORE             = 0x12,
+        EVENT_MERRY_GO_ROUND         = 0x13,
+        EVENT_RACE                   = 0x14,
+        EVENT_CUTSCENE_STAR_SPAWN    = 0x15,
+        EVENT_BOSS                   = 0x16,
+        EVENT_CUTSCENE_COLLECT_KEY   = 0x17,
+        EVENT_ENDLESS_STAIRS         = 0x18,
+        LEVEL_BOSS_KOOPA_FINAL       = 0x19,
+        EVENT_CUTSCENE_CREDITS       = 0x1A,
+        EVENT_SOLVE_PUZZLE           = 0x1B,
+        EVENT_TOAD_MESSAGE           = 0x1C,
+        EVENT_PEACH_MESSAGE          = 0x1D,
+        EVENT_CUTSCENE_INTRO         = 0x1E,
+        EVENT_CUTSCENE_VICTORY       = 0x1F,
+        EVENT_CUTSCENE_ENDING        = 0x20,
+        MENU_FILE_SELECT             = 0x21,
+        EVENT_CUTSCENE_LAKITU        = 0x22,
+    }
 
     #endregion
 }

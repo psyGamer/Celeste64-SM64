@@ -1,6 +1,4 @@
 using System.Runtime.InteropServices;
-using Celeste64;
-using Celeste64.Mod.SuperMario64;
 using FMOD;
 using static LibSM64.Native;
 
@@ -11,15 +9,12 @@ public static class AudioPlayer
     private const int NumChannels = 2;
     private const int SampleRate = 32000;
     private const int AudioBufferSize = 544 * 2;
-    private const int QueueSize = 16384;
+    private const int QueueSize = 32767;
     
     private static readonly short[] audioBuffer = new short[AudioBufferSize * NumChannels];
     private static readonly CircularQueue<short> audioQueue = new(QueueSize);
     
     private static FMOD.Sound sound;
-    
-    // Set by when Mario.Tick is called
-    public static bool ShouldTick = false;
     
     public static void Create()
     {
@@ -41,8 +36,8 @@ public static class AudioPlayer
     
     public static unsafe void Update()
     {
-        if (!ShouldTick) return;
-        ShouldTick = false;
+        if (SuperMario64Mod.IsOddFrame)
+            return;
         
         fixed (short* pBuf = audioBuffer)
         {
