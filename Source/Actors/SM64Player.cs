@@ -171,6 +171,10 @@ public class SM64Player : Player
         
         foreach (var solid in solids)
         {
+            // Only generate for solid level geometry
+            if (solid.GetType() != typeof(Solid))
+                continue;
+            
             var verts = solid.WorldVertices;
 
             foreach (var face in solid.WorldFaces)
