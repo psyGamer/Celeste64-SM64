@@ -124,12 +124,12 @@ public class Native
         public SM64Vector3f pos;
         public float offsetY;
         public float radius;
-        public short _; // unk14
+        private short unk14;
         public short numWalls;
         
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
         //public unsafe SM64SurfaceCollisionData*[] walls;
-        public unsafe IntPtr[] walls;
+        public IntPtr[] walls;
     };
 
     #endregion

@@ -13,8 +13,7 @@ public class Mario
         public bool ZButtonDown;
     }
     
-    public readonly int id;
-    
+    private readonly int id;
     private SM64MarioState state;
     
     public GamepadState Gamepad;
@@ -32,7 +31,6 @@ public class Mario
     public Mario(SM64Vector3f vec) : this(vec.x, vec.y, vec.z) { }
 
     ~Mario() => Dispose();
-
     public void Dispose()
     {
         sm64_mario_delete(id);
@@ -67,6 +65,8 @@ public class Mario
     }
     public ushort ActionState => state.actionState;
     public ushort ActionTimer => state.actionTimer;
+    
+    public void SetActionWithArg(SM64Action action, uint arg) => sm64_set_mario_action_arg(id, (uint)action, arg);
 
     public SM64MarioAnimID Animation
     {

@@ -308,18 +308,13 @@ public class SM64Player : Player
             Mario.Action = SM64Action.IDLE;
         }
         
+        // TODO: Probably remove these debug hotkeys lol
         if (Input.Keyboard.Pressed(Keys.P))
             Mario.InteractCap(SM64MarioFlags.WING_CAP);
         if (Input.Keyboard.Pressed(Keys.O))
             Mario.InteractCap(SM64MarioFlags.METAL_CAP);
         if (Input.Keyboard.Pressed(Keys.I))
             Mario.InteractCap(SM64MarioFlags.VANISH_CAP);
-        
-        if (Input.Keyboard.Pressed(Keys.J))
-        {
-            // Mario.Action = SM64Action.STAR_DANCE_NO_EXIT;
-            sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, 1);
-        }
         
         // Reimplemented check_kick_or_punch_wall() from libsm64 src/decomp/game/interaction.c
         // We don't set any state (since libsm64 already does that) but only check for collisions with breakable blocks
@@ -329,29 +324,19 @@ public class SM64Player : Player
                 Mario.Position.y,
                 Mario.Position.z + 50.0f * MathF.Cos(Mario.FaceAngle));
 
-            var colData = new SM64WallCollisionData()
-            {
-                pos = detector,
-                offsetY = 80.0f,
-                radius = 5.0f,
-            };
-            
-            if (sm64_surface_find_wall_collisions(ref colData) != 0)
-            {
-                // Use velocity of Mario's hand for the impact
-                var handVelocity = new SM64Vector3f(
-                    50.0f * MathF.Sin(Mario.FaceAngle), 
-                    0.0f, 
-                    50.0f * MathF.Cos(Mario.FaceAngle)).ToC64VelocityVec3();
+            // Use velocity of Mario's hand for the impact
+            var handVelocity = new SM64Vector3f(
+                50.0f * MathF.Sin(Mario.FaceAngle), 
+                0.0f, 
+                50.0f * MathF.Cos(Mario.FaceAngle)).ToC64VelocityVec3();
 
-                for (int i = 0; i < colData.numWalls; i++)
+            var walls = SM64Context.FindWallCollisions(detector, 80.0f, 5.0f);
+            foreach (var wall in walls)
+            {
+                if (breakableObjects.TryGetValue(wall->objId, out var solid))
                 {
-                    Log.Info($"Hit {((SM64SurfaceCollisionData*)colData.walls[i])->objId}");
-                    if (breakableObjects.TryGetValue(((SM64SurfaceCollisionData*)colData.walls[i])->objId, out var solid))
-                    {
-                        // They have been checked to be an IDashTrigger when added to the dict
-                        ((IDashTrigger)solid).HandleDash(handVelocity); 
-                    }
+                    // They have been checked to be an IDashTrigger when added to the dict
+                    ((IDashTrigger)solid).HandleDash(handVelocity); 
                 }
             }
         }
@@ -580,7 +565,7 @@ public class SM64Player : Player
         LastStrawb = strawb;
         Position = strawb.Position + Vec3.UnitZ * -3;
         
-        sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, World.Entry.Submap ? 0u : 1u);
+        Mario.SetActionWithArg(SM64Action.FALL_AFTER_STAR_GRAB, World.Entry.Submap ? 0u : 1u);
     }
 
     public override void Spring(Spring spring)
