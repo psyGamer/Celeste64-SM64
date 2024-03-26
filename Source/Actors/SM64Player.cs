@@ -204,7 +204,7 @@ public class SM64Player : Player
 
         // Add death plane
         const int DeathPlaneInflate = (int)(10 * C64_To_SM64_Pos);
-        const int DeathPlaneOffset = (int)(100 * C64_To_SM64_Pos);
+        const int DeathPlaneOffset = (int)(1000 * C64_To_SM64_Pos);
         staticBuilder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
             new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
             new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
@@ -249,7 +249,8 @@ public class SM64Player : Player
         {
             dynamicMesh.Move(new SM64ObjectTransform()
             {
-                position = solid.Position.ToSM64Vec3(),
+                // Predict next position, since SM64 only runs at 30 FPS
+                position = (solid.Position + solid.Velocity / 2.0f * Time.Delta).ToSM64Vec3() ,
                 eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
             });
         }
