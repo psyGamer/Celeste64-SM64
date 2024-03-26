@@ -34,8 +34,8 @@
         <Copy SourceFiles="$(OutputPath)/$(AssemblyName).dll" DestinationFolder="../Libraries"/>
         <Copy SourceFiles="$(OutputPath)/$(AssemblyName).pdb" DestinationFolder="../Libraries"/>
 
-        <Copy SourceFiles="LibSM64Sharp/libs/win-x64/sm64.dll" DestinationFolder="../Libraries/lib-win-x64"/>
-        <Copy SourceFiles="LibSM64Sharp/libs/linux-x64/libsm64.so" DestinationFolder="../Libraries/lib-linux-x64"/>
+        <Copy SourceFiles="LibSM64/libs/win-x64/sm64.dll" DestinationFolder="../Libraries/lib-win-x64"/>
+        <Copy SourceFiles="LibSM64/libs/linux-x64/libsm64.so" DestinationFolder="../Libraries/lib-linux-x64"/>
         <!--  TODO: libsm64.so (ARM64) -->
         <!--  TODO: libsm64.so (ARM) -->
         <!--  TODO: libsm64.dylib (x64) -->

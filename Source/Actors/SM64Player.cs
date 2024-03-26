@@ -268,7 +268,6 @@ public class SM64Player : Player
             
         if (solid is IDashTrigger dashTrigger)
         {
-            Log.Info($"Registered {solid} @ {dynamicMesh.ObjectID}");
             breakableObjects.Add(dynamicMesh.ObjectID, solid);
         }
             
