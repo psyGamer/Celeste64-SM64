@@ -18,7 +18,7 @@ public static class SM64VectorExtensions
     public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
     public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Z * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
     
-    public static SM64Vector2f ToSM64VelocityVec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64_Vel, vec.Y * SM64Player.C64_To_SM64_Vel);
+    public static Vec3 ToC64VelocityVec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64_Vel, vec.z * SM64Player.SM64_To_C64_Vel, vec.y * SM64Player.SM64_To_C64_Vel);
     public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Vel, vec.Z * SM64Player.C64_To_SM64_Vel, vec.Y * SM64Player.C64_To_SM64_Vel);
 }
 
@@ -161,12 +161,14 @@ public class SM64Player : Player
     }
     
     private static readonly Dictionary<Solid, DynamicCollisionMesh> dynamicMeshes = [];
+    private static readonly Dictionary<uint, Solid> breakableObjects = [];
     public static void GenerateSolids(World world)
     {
         // Cleanup old data. Static geometry will just get overwritten entirely
         foreach (var dynamicMesh in dynamicMeshes.Values)
             dynamicMesh.Dispose();
         dynamicMeshes.Clear();
+        breakableObjects.Clear();
         
         var staticBuilder = new CollisionMeshBuilder();
 
@@ -227,18 +229,26 @@ public class SM64Player : Player
                 // Triangulate the mesh
                 for (int i = 0; i < face.VertexCount - 2; i ++)
                 {
-                    objectBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
+                    objectBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.SAND,
                         verts[face.VertexStart + 0].ToSM64Vec3(),
                         verts[face.VertexStart + 2 + i].ToSM64Vec3(),
                         verts[face.VertexStart + 1 + i].ToSM64Vec3());
                 }
             }
             
-            dynamicMeshes.Add(solid, objectBuilder.BuildDynamic(new SM64ObjectTransform()
+            var dynamicMesh = objectBuilder.BuildDynamic(new SM64ObjectTransform()
             {
                 position = solid.Position.ToSM64Vec3(),
                 eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
-            }));
+            }); 
+            
+            if (solid is IDashTrigger dashTrigger)
+            {
+                Log.Info($"Registered {solid} @ {dynamicMesh.ObjectID}");
+                breakableObjects.Add(dynamicMesh.ObjectID, solid);
+            }
+            
+            dynamicMeshes.Add(solid, dynamicMesh);
         }
     }
     
@@ -261,7 +271,7 @@ public class SM64Player : Player
     private bool inCutscene = false;
     private bool startedStrawbDance = false;
 
-    public override void Update()
+    public override unsafe void Update()
     {
         bool cutsceneActive = World.All<Cutscene>().Count() != 0;
         if (cutsceneActive && !inCutscene)
@@ -276,11 +286,11 @@ public class SM64Player : Player
         }
         
         if (Input.Keyboard.Pressed(Keys.P))
-            Mario.InteractCap(SM64CapFlags.WING_CAP);
+            Mario.InteractCap(SM64MarioFlags.WING_CAP);
         if (Input.Keyboard.Pressed(Keys.O))
-            Mario.InteractCap(SM64CapFlags.METAL_CAP);
+            Mario.InteractCap(SM64MarioFlags.METAL_CAP);
         if (Input.Keyboard.Pressed(Keys.I))
-            Mario.InteractCap(SM64CapFlags.VANISH_CAP);
+            Mario.InteractCap(SM64MarioFlags.VANISH_CAP);
         
         if (Input.Keyboard.Pressed(Keys.J))
         {
@@ -288,6 +298,43 @@ public class SM64Player : Player
             sm64_set_mario_action_arg(Mario.id, (int)SM64Action.FALL_AFTER_STAR_GRAB, 1);
         }
         
+        // Reimplemented check_kick_or_punch_wall() from libsm64 src/decomp/game/interaction.c
+        // We don't set any state (since libsm64 already does that) but only check for collisions with breakable blocks
+        if (Mario.Flags.Has(SM64MarioFlags.PUNCHING | SM64MarioFlags.KICKING | SM64MarioFlags.TRIPPING)) {
+            var detector = new SM64Vector3f(
+                Mario.Position.x + 50.0f * MathF.Sin(Mario.FaceAngle),
+                Mario.Position.y,
+                Mario.Position.z + 50.0f * MathF.Cos(Mario.FaceAngle));
+
+            var colData = new SM64WallCollisionData()
+            {
+                pos = detector,
+                offsetY = 80.0f,
+                radius = 5.0f,
+            };
+            
+            if (sm64_surface_find_wall_collisions(ref colData) != 0)
+            {
+                // Use velocity of Mario's hand for the impact
+                var handVelocity = new SM64Vector3f(
+                    50.0f * MathF.Sin(Mario.FaceAngle), 
+                    0.0f, 
+                    50.0f * MathF.Cos(Mario.FaceAngle)).ToC64VelocityVec3();
+
+                for (int i = 0; i < colData.numWalls; i++)
+                {
+                    Log.Info($"Hit {((SM64SurfaceCollisionData*)colData.walls[i])->objId}");
+                    if (breakableObjects.TryGetValue(((SM64SurfaceCollisionData*)colData.walls[i])->objId, out var solid))
+                    {
+                        // TODO: For some reason they don't have a world attached???
+                        solid.world = World;
+                        // They have been checked to be an IDashTrigger when added to the dict
+                        ((IDashTrigger)solid).HandleDash(handVelocity); 
+                    }
+                }
+            }
+        }
+
         Mario.Gamepad.Stick.X = Controls.Move.Value.X;
         Mario.Gamepad.Stick.Y = -Controls.Move.Value.Y;
         if (Mario.Action == SM64Action.FLYING)

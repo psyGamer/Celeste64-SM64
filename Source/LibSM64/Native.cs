@@ -82,6 +82,56 @@ public class Native
         public ushort numTrianglesUsed;
     }
     
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SM64SurfaceObjectTransform
+    {
+        public float aPosX, aPosY, aPosZ;
+        public float aVelX, aVelY, aVelZ;
+
+        public short aFaceAnglePitch;
+        public short aFaceAngleYaw;
+        public short aFaceAngleRoll;
+
+        public short aAngleVelPitch;
+        public short aAngleVelYaw;
+        public short aAngleVelRoll;
+    };
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SM64SurfaceCollisionData
+    {
+        public short type;
+        public short force;
+        public sbyte flags;
+        public sbyte room;
+        public int lowerY;
+        public int upperY;
+        public int v0x, v0y, v0z;
+        public int v1x, v1y, v1z;
+        public int v2x, v2y, v2z;
+        public SM64Vector3f normal;
+        public float originOffset;
+
+        public byte isValid;
+        public unsafe SM64SurfaceObjectTransform* transform;
+        public ushort terrain;
+        public uint objId;
+    };
+    
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SM64WallCollisionData
+    {
+        public SM64Vector3f pos;
+        public float offsetY;
+        public float radius;
+        public short _; // unk14
+        public short numWalls;
+        
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        //public unsafe SM64SurfaceCollisionData*[] walls;
+        public unsafe IntPtr[] walls;
+    };
+
     #endregion
 
     #region Functions
@@ -159,6 +209,9 @@ public class Native
     [DllImport(SM64_LIB)]
     public static extern void sm64_surface_object_delete(uint objectId);
     
+    [DllImport(SM64_LIB)]
+    public static extern int sm64_surface_find_wall_collisions(ref SM64WallCollisionData colData);
+
     [DllImport(SM64_LIB)]
     public static extern unsafe void sm64_play_sound(int soundBits, SM64Vector3f* pos);
     [DllImport(SM64_LIB)]
@@ -1348,7 +1401,7 @@ public class Native
     }
 
     [Flags]
-    public enum SM64CapFlags : uint
+    public enum SM64MarioFlags : uint
     {
         NORMAL_CAP                = 0x00000001,
         VANISH_CAP                = 0x00000002,

@@ -73,9 +73,9 @@ public class Mario
         get => throw new NotImplementedException();
         set => sm64_set_mario_animation(id, (int)value);
     }
-    public SM64CapFlags CapFlags
+    public SM64MarioFlags Flags
     {
-        get => (SM64CapFlags)state.flags;
+        get => (SM64MarioFlags)state.flags;
         set => sm64_set_mario_state(id, (uint)value);
     }
     public SM64ModelState ModelState
@@ -95,15 +95,15 @@ public class Mario
         }
     }
     
-    public void InteractCap(SM64CapFlags capFlag, ushort capTime = 0)
+    public void InteractCap(SM64MarioFlags capFlag, ushort capTime = 0)
     {
         // All caps are mutually exclusive
-        var flags = CapFlags;
-        flags &= ~SM64CapFlags.SPECIAL_CAPS;
-        if (!flags.Has(SM64CapFlags.CAPS)) {
-            flags &= ~SM64CapFlags.CAP_ON_HEAD;
+        var flags = Flags;
+        flags &= ~SM64MarioFlags.SPECIAL_CAPS;
+        if (!flags.Has(SM64MarioFlags.CAPS)) {
+            flags &= ~SM64MarioFlags.CAP_ON_HEAD;
         }
-        CapFlags = flags;
+        Flags = flags;
         
         sm64_mario_interact_cap(id, (uint)capFlag, capTime, 1);
     }

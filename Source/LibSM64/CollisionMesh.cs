@@ -5,7 +5,7 @@ namespace LibSM64;
 
 public class DynamicCollisionMesh
 {
-    private readonly uint objectId;
+    public readonly uint ObjectID;
     
     public unsafe DynamicCollisionMesh(SM64Surface[] surfaces, SM64ObjectTransform transform)
     {
@@ -17,20 +17,20 @@ public class DynamicCollisionMesh
                 surfaceCount = (uint)surfaces.Length,
                 surfaces = pSurfaces,
             };
-            objectId = sm64_surface_object_create(ref surfaceObject);
+            ObjectID = sm64_surface_object_create(ref surfaceObject);
         }
     }
     
     ~DynamicCollisionMesh() => Dispose();
     public void Dispose()
     {
-        sm64_surface_object_delete(objectId);
+        sm64_surface_object_delete(ObjectID);
         GC.SuppressFinalize(this);
     }
     
     public void Move(SM64ObjectTransform transform)
     {
-        sm64_surface_object_move(objectId, ref transform);
+        sm64_surface_object_move(ObjectID, ref transform);
     }
 }
 
