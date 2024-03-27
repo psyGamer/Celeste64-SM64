@@ -75,9 +75,18 @@ public class MarioPlayer : Player
                     modelState |= 2;
                 material.Set("u_model_state", (float)modelState);
             }
+
+            // SM64 is left-handed, we are right-handed
+            // However for some unknown reason, flying is an exception..
+            var leftToRight = mario.Action == SM64Action.FLYING
+                ? Matrix.Identity
+                : Matrix.CreateRotationZ(mario.FaceAngle) *
+                  Matrix.CreateScale(-1.0f, 1.0f, 1.0f) *
+                  Matrix.CreateRotationZ(-mario.FaceAngle);
             
-            material.Model = Matrix.CreateTranslation(-mario.Position.AsC64Vec3()) * 
-                             Matrix.CreateScale(SM64_To_C64_Pos) *
+            material.Model = Matrix.CreateTranslation(-mario.Position.AsC64Vec3()) *
+                             leftToRight *
+                             Matrix.CreateScale(SM64_To_C64_Pos) * // For some reason Mario is flipped on the Y axis?
                              Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
@@ -118,9 +127,16 @@ public class MarioPlayer : Player
 
     public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToC64Vec3() : velocity;
 
+    // :screwms: moment
+    private static float Modulo(float a, float b)
+    {
+        return (a % b + b) % b;
+    }
+
     public override Vec2 Facing
     {
-        get => Calc.AngleToVector(Mario.FaceAngle);
+        // C64 rotates counter-clock-wise and +Y is 0, SM64 rotates clock-wise and +X is 0
+        get => Calc.AngleToVector(90.0f * Calc.DegToRad - Modulo(Mario.FaceAngle, 360.0f * Calc.DegToRad));
         set
         {
             if (facing == value)
@@ -128,7 +144,7 @@ public class MarioPlayer : Player
 
             facing = value;
             dirty = true;
-            Mario.FaceAngle = value.Angle();
+            Mario.FaceAngle = Modulo(90.0f * Calc.DegToRad - value.Angle(), 360.0f * Calc.DegToRad);
         }
     }
 
@@ -165,11 +181,13 @@ public class MarioPlayer : Player
         {
             // Start cutscene
             Mario.Action = SM64Action.WAITING_FOR_DIALOG;
+            inCutscene = true;
         }
         else if (!cutsceneActive && inCutscene)
         {
             // End cutscene
             Mario.Action = SM64Action.IDLE;
+            inCutscene = false;
         }
         
         // TODO: Probably remove these debug hotkeys lol
@@ -253,14 +271,14 @@ public class MarioPlayer : Player
         Mario.Gamepad.CameraLook.Y = cameraPosition.Y - cameraLookAt.Y;
 
         // Check for NPC interaction
-        if (Mario.ReadyToSpeak)
+        if (!cutsceneActive && Mario.ReadyToSpeak)
         {
             foreach (var actor in World.All<NPC>())
             {
                 if (actor is NPC { InteractEnabled: true } npc)
                 {
                     if ((Position - npc.Position).LengthSquared() < npc.InteractRadius * npc.InteractRadius &&
-                        Vec2.Dot((npc.Position - Position).XY(), TargetFacing) > 0 &&
+                        Vec2.Dot((npc.Position - Position).XY(), Facing) > 0 &&
                         MathF.Abs(npc.Position.Z - Position.Z) < 2)
                     {
                         npc.IsPlayerOver = true;
@@ -311,6 +329,7 @@ public class MarioPlayer : Player
         if (!SuperMario64Mod.IsOddFrame && StateMachine.State != States.Cassette)
         {
             Mario.Tick();
+            facing = Facing;
         } 
         
         // Strawb dance 
