@@ -155,136 +155,6 @@ public class MarioPlayer : Player
         Dispose();
     }
     
-    private static readonly Dictionary<Solid, DynamicCollisionMesh> dynamicMeshes = [];
-    private static readonly Dictionary<uint, Solid> breakableObjects = [];
-    public static void GenerateSolids(World world)
-    {
-        // Cleanup old data. Static geometry will just get overwritten entirely
-        foreach (var dynamicMesh in dynamicMeshes.Values)
-            dynamicMesh.Dispose();
-        dynamicMeshes.Clear();
-        breakableObjects.Clear();
-        
-        var staticBuilder = new CollisionMeshBuilder();
-
-        // Bounding box of all solids combined
-        float minX = 0, maxX = 0, minZ = 0, maxZ = 0;
-        
-        // Gather all solids, even if they aren't part of the World yet
-        var solids = world.All<Solid>().Cast<Solid>()
-                    .Concat(world.adding.OfType<Solid>());
-        
-        foreach (var solid in solids)
-        {
-            // Only generate for solid level geometry
-            if (solid.GetType() != typeof(Solid))
-                continue;
-            
-            var verts = solid.WorldVertices;
-            foreach (var face in solid.WorldFaces)
-            {
-                // Triangulate the mesh
-                for (int i = 0; i < face.VertexCount - 2; i ++)
-                {
-                    staticBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.GRASS,
-                        verts[face.VertexStart + 0].ToSM64Vec3(),
-                        verts[face.VertexStart + 2 + i].ToSM64Vec3(),
-                        verts[face.VertexStart + 1 + i].ToSM64Vec3());
-                }
-            }
-            
-            minX = Math.Min(minX, solid.WorldBounds.Min.X);
-            maxX = Math.Max(maxX, solid.WorldBounds.Max.X);
-            minZ = Math.Min(minZ, solid.WorldBounds.Min.Y);
-            maxZ = Math.Max(maxZ, solid.WorldBounds.Max.Y);
-        }
-
-        // Add death plane
-        const int DeathPlaneInflate = (int)(10 * C64_To_SM64_Pos);
-        const int DeathPlaneOffset = (int)(1000 * C64_To_SM64_Pos);
-        staticBuilder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
-            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, maxZ * C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(minX * C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate),
-            new SM64Vector3f(maxX * C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * C64_To_SM64_Pos - DeathPlaneOffset, minZ * C64_To_SM64_Pos - DeathPlaneInflate));
-        
-        staticBuilder.BuildStatic();
-        
-        // Only include solids which already exist. Added/Destroyed is handled inside the hooks
-        foreach (var solid in world.All<Solid>().Cast<Solid>())
-        {
-            CreateDynamicObjectMesh(solid);
-        }
-    }
-    
-    [On.Celeste64.Actor.Added]
-    private static void On_Actor_Added(On.Celeste64.Actor.orig_Added orig, Actor self)
-    {
-        orig(self);
-        
-        if (self is Solid solid)
-            CreateDynamicObjectMesh(solid);
-    }
-    
-    [On.Celeste64.Solid.Destroyed]
-    private static void On_Solid_Destroyed(On.Celeste64.Solid.orig_Destroyed orig, Solid self)
-    {
-        if (dynamicMeshes.Remove(self, out var dynamicMesh))
-            dynamicMesh.Dispose();
-        orig(self);
-    }
-    
-    private static void CreateDynamicObjectMesh(Solid solid)
-    {
-        // Only generate for dynamic actor geometry
-        if (solid.GetType() == typeof(Solid))
-            return;
-            
-        var objectBuilder = new CollisionMeshBuilder();
-            
-        var verts = solid.LocalVertices;
-        foreach (var face in solid.LocalFaces)
-        {
-            // Triangulate the mesh
-            for (int i = 0; i < face.VertexCount - 2; i ++)
-            {
-                objectBuilder.AddTriangle(SM64SurfaceType.DEFAULT, SM64TerrainType.SAND,
-                    verts[face.VertexStart + 0].ToSM64Vec3(),
-                    verts[face.VertexStart + 2 + i].ToSM64Vec3(),
-                    verts[face.VertexStart + 1 + i].ToSM64Vec3());
-            }
-        }
-            
-        var dynamicMesh = objectBuilder.BuildDynamic(new SM64ObjectTransform()
-        {
-            position = solid.Position.ToSM64Vec3(),
-            eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
-        }); 
-            
-        if (solid is IDashTrigger dashTrigger)
-        {
-            breakableObjects.Add(dynamicMesh.ObjectID, solid);
-        }
-            
-        dynamicMeshes.Add(solid, dynamicMesh);
-    }
-    
-    [On.Celeste64.Actor.ValidateTransformations]
-    private static void On_Actor_ValidateTransformations(On.Celeste64.Actor.orig_ValidateTransformations orig, Actor self)
-    {
-        if (self.dirty && self is Solid solid && dynamicMeshes.TryGetValue(solid, out var dynamicMesh))
-        {
-            dynamicMesh.Move(new SM64ObjectTransform()
-            {
-                // Predict next position, since SM64 only runs at 30 FPS
-                position = (solid.Position + solid.Velocity / 2.0f * Time.Delta).ToSM64Vec3() ,
-                eulerRotation = solid.RotationXYZ.AsSM64Vec3(),
-            });
-        }
-        
-        orig(self);
-    }
-    
     private bool inCutscene = false;
     private bool startedStrawbDance = false;
 
@@ -332,7 +202,7 @@ public class MarioPlayer : Player
             var walls = SM64Context.FindWallCollisions(detector, 80.0f, 5.0f);
             foreach (var wall in walls)
             {
-                if (breakableObjects.TryGetValue(wall->objId, out var solid))
+                if (MeshGenerator.BreakableSolids.TryGetValue(wall->objId, out var solid))
                 {
                     // They have been checked to be an IDashTrigger when added to the dict
                     ((IDashTrigger)solid).HandleDash(handVelocity); 

@@ -98,4 +98,10 @@ public class CollisionMeshBuilder
 
         return this;
     }
+    
+    public CollisionMeshBuilder Combine(CollisionMeshBuilder other)
+    {
+        surfaces.AddRange(other.surfaces);
+        return this;
+    }
 }

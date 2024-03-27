@@ -21,6 +21,7 @@ public class SuperMario64Mod : GameMod
         var romBytes = File.ReadAllBytes("sm64.z64");
         SM64Context.InitializeFromROM(romBytes);
         AudioPlayer.Create();
+        MeshGenerator.Load();
         
         AddActorFactory("PlayerSpawn", new Map.ActorFactory((map, entity) =>
         {
@@ -62,6 +63,6 @@ public class SuperMario64Mod : GameMod
             return;
         }
         
-        MarioPlayer.GenerateSolids(world);
+        MeshGenerator.GenerateSolids(world);
     }
 }
