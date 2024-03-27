@@ -503,6 +503,9 @@ public class MarioPlayer : Player
         
         if (Mario.Health <= 0x0100)
         {
+            // Stop cap music
+            SM64Context.StopBackgroundMusic(SM64SeqId.EVENT_POWERUP);
+            SM64Context.StopBackgroundMusic(SM64SeqId.EVENT_METAL_CAP);
             Dead = true;
             Save.CurrentRecord.Deaths++;
         }

@@ -247,6 +247,8 @@ public class Native
     [DllImport(SM64_LIB)]
     public static extern void sm64_stop_background_music(ushort seqId);
     [DllImport(SM64_LIB)]
+    public static extern void sm64_stop_all_background_music();
+    [DllImport(SM64_LIB)]
     public static extern void sm64_fadeout_background_music(ushort arg0, ushort fadeOut);
     [DllImport(SM64_LIB)]
     public static extern ushort sm64_get_current_background_music();

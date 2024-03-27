@@ -57,7 +57,10 @@ public class SuperMario64Mod : GameMod
     public override void OnSceneEntered(Scene scene)
     {
         if (scene is not World world)
+        {
+            SM64Context.StopAllBackgroundMusic();
             return;
+        }
         
         MarioPlayer.GenerateSolids(world);
     }

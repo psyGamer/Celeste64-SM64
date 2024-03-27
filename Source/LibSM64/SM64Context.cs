@@ -88,6 +88,9 @@ public static class SM64Context
     public static void PlayMusic(SM64SeqPlayer player, SM64SeqId seqId, byte priority = 4, ushort fadeTimer = 0) 
         => sm64_play_music((byte)player, (ushort)((priority << 8) | (ushort)seqId), fadeTimer);
 
+    public static void StopBackgroundMusic(SM64SeqId seqId) => sm64_stop_background_music((ushort)seqId);
+    public static void StopAllBackgroundMusic() => sm64_stop_all_background_music();
+    
     public static unsafe void PlaySound(SM64Sound sound, SM64Vector3f pos) => sm64_play_sound((int)sound, &pos);
     public static void PlaySoundGlobal(SM64Sound sound) => sm64_play_sound_global((int)sound);
 }
