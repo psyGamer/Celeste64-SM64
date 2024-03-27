@@ -12,17 +12,17 @@ public static class SM64VectorExtensions
     public static SM64Vector2f AsSM64Vec2(this Vec2 vec) => new(vec.X, vec.Y);
     public static SM64Vector3f AsSM64Vec3(this Vec3 vec) => new(vec.X, vec.Z, vec.Y);
     
-    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * SM64Player.SM64_To_C64_Pos, vec.y * SM64Player.SM64_To_C64_Pos);
-    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64_Pos, vec.z * SM64Player.SM64_To_C64_Pos, vec.y * SM64Player.SM64_To_C64_Pos); 
+    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * MarioPlayer.SM64_To_C64_Pos, vec.y * MarioPlayer.SM64_To_C64_Pos);
+    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * MarioPlayer.SM64_To_C64_Pos, vec.z * MarioPlayer.SM64_To_C64_Pos, vec.y * MarioPlayer.SM64_To_C64_Pos); 
     
-    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
-    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Pos, vec.Z * SM64Player.C64_To_SM64_Pos, vec.Y * SM64Player.C64_To_SM64_Pos);
+    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * MarioPlayer.C64_To_SM64_Pos, vec.Y * MarioPlayer.C64_To_SM64_Pos);
+    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * MarioPlayer.C64_To_SM64_Pos, vec.Z * MarioPlayer.C64_To_SM64_Pos, vec.Y * MarioPlayer.C64_To_SM64_Pos);
     
-    public static Vec3 ToC64VelocityVec3(this SM64Vector3f vec) => new(vec.x * SM64Player.SM64_To_C64_Vel, vec.z * SM64Player.SM64_To_C64_Vel, vec.y * SM64Player.SM64_To_C64_Vel);
-    public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * SM64Player.C64_To_SM64_Vel, vec.Z * SM64Player.C64_To_SM64_Vel, vec.Y * SM64Player.C64_To_SM64_Vel);
+    public static Vec3 ToC64VelocityVec3(this SM64Vector3f vec) => new(vec.x * MarioPlayer.SM64_To_C64_Vel, vec.z * MarioPlayer.SM64_To_C64_Vel, vec.y * MarioPlayer.SM64_To_C64_Vel);
+    public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * MarioPlayer.C64_To_SM64_Vel, vec.Z * MarioPlayer.C64_To_SM64_Vel, vec.Y * MarioPlayer.C64_To_SM64_Vel);
 }
 
-public class SM64Player : Player
+public class MarioPlayer : Player
 {
     /// <summary>
     /// A single unit in SM64 and C64 are different sizes.
@@ -489,8 +489,23 @@ public class SM64Player : Player
         }
         
         // Death plane
-        if (Position.Z < World.DeathPlane)
-            Kill();
+        if (Position.Z < World.DeathPlane ||
+            World.Overlaps<DeathBlock>(SolidWaistTestPos))
+        {
+            Mario.Kill();
+            return;
+        }
+        // Spikes (Mario can walk on them with the metal cap)
+        if (!Mario.Flags.Has(SM64MarioFlags.METAL_CAP) && World.OverlapsFirst<SpikeBlock>(SolidWaistTestPos, SpikeBlockCheck) is { } spikes)
+        {
+            Mario.Damage(0xff, SM64IntSubtype.NONE, (Position + spikes.Direction * 3.0f).ToSM64Vec3());
+        }
+        
+        if (Mario.Health <= 0x0100)
+        {
+            Dead = true;
+            Save.CurrentRecord.Deaths++;
+        }
         
         // Respawning
         if (Dead && !Game.Instance.IsMidTransition)
@@ -568,13 +583,7 @@ public class SM64Player : Player
         Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
     }
 
-    public override void Kill()
-    {
-        Mario.Kill();
-        
-        Dead = true;
-        Save.CurrentRecord.Deaths++;
-    }
+    public override void Kill() => Mario.Kill();
     
     public override void SetTargetFacing(Vector2 facing) => Facing = facing;
     public override void Stop()

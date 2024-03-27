@@ -182,6 +182,6 @@ public class Mario
     public void Attack(SM64Vector3f pos, float hitboxHeight) => sm64_mario_attack(id, pos.x, pos.y, pos.z, hitboxHeight);
     
     public void Heal(byte healCounter) => sm64_mario_heal(id, healCounter);
-    public void Damage(uint damage, uint subtype, float x, float y, float z) => sm64_mario_take_damage(id, damage, subtype, x, y, z);
-    public void Damage(uint damage, uint subtype, SM64Vector3f pos) => sm64_mario_take_damage(id, damage, subtype, pos.x, pos.y, pos.z);
+    public void Damage(uint damage, SM64IntSubtype subtype, float x, float y, float z) => sm64_mario_take_damage(id, damage, (uint)subtype, x, y, z);
+    public void Damage(uint damage, SM64IntSubtype subtype, SM64Vector3f pos) => sm64_mario_take_damage(id, damage, (uint)subtype, pos.x, pos.y, pos.z);
 }
