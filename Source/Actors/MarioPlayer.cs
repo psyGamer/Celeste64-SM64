@@ -518,7 +518,7 @@ public class MarioPlayer : Player
 
     public override void Kill() => Mario.Kill();
     
-    public override void SetTargetFacing(Vector2 facing) => Facing = facing;
+    public override void SetTargetFacing(Vec2 facing) => Facing = facing;
     public override void Stop()
     {
         Mario.Action = SM64Action.FREEFALL;
