@@ -147,6 +147,7 @@ public class MarioPlayer : Player
         
         // Initial tick to set everything up
         Mario.Tick();
+        Facing = Vec2.UnitY;
         
         MarioPlayerModel = new MarioModel(Mario);
         MarioPlayerModel.Flags |= ModelFlags.Silhouette; 
@@ -511,7 +512,8 @@ public class MarioPlayer : Player
     public override void Spring(Spring spring)
     {
         Mario.Action = SM64Action.TWIRLING;
-        Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel };
+        Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel * 1.5f }; // Boost springs a bit for a better feel
+        SM64Context.PlaySound(SM64Sound.MARIO_TWIRL_BOUNCE, Mario.Position);
     }
 
     public override void Kill() => Mario.Kill();
