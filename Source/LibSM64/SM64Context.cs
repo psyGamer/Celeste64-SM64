@@ -56,6 +56,8 @@ public static class SM64Context
         sm64_global_terminate();
     }
     
+    public static int FindWallCollision(ref float x, ref float y, ref float z, float offset, float radius) => sm64_surface_find_wall_collision(ref x, ref y, ref z, offset, radius);
+
     public static unsafe SM64SurfaceCollisionData*[] FindWallCollisions(SM64Vector3f position, float offsetY, float radius)
     {
         var colData = new SM64WallCollisionData()
@@ -77,6 +79,8 @@ public static class SM64Context
         };
     }
     
+    public static unsafe float FindFloor(float x, float y, float z, ref SM64SurfaceCollisionData* pfloor) => sm64_surface_find_floor(x, y, z, ref pfloor);
+
     public static unsafe uint TickAudio(uint numQueuedSamples, uint numDesiredSamples, short[] audioBuffer)
     {
         fixed (short* pBuf = audioBuffer)

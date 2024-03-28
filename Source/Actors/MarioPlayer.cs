@@ -3,7 +3,7 @@ using static LibSM64.Native;
 
 namespace Celeste64.Mod.SuperMario64;
 
-public static class SM64VectorExtensions
+public static class SM64ConversionExtensions
 {
     // !! IMPORTANT !! In SM64 Y and Z are flipped compared to C64.
     
@@ -20,6 +20,16 @@ public static class SM64VectorExtensions
     
     public static Vec3 ToC64VelocityVec3(this SM64Vector3f vec) => new(vec.x * MarioPlayer.SM64_To_C64_Vel, vec.z * MarioPlayer.SM64_To_C64_Vel, vec.y * MarioPlayer.SM64_To_C64_Vel);
     public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * MarioPlayer.C64_To_SM64_Vel, vec.Z * MarioPlayer.C64_To_SM64_Vel, vec.Y * MarioPlayer.C64_To_SM64_Vel);
+    
+    // :screwms: moment
+    private static float Modulo(float a, float b)
+    {
+        return (a % b + b) % b;
+    }
+    
+    // C64 rotates counter-clock-wise and +Y is 0, SM64 rotates clock-wise and +X is 0
+    public static float ToC64Angle(this float angle) => 90.0f * Calc.DegToRad - Modulo(angle, 360.0f * Calc.DegToRad);
+    public static float ToSM64Angle(this float angle) => Modulo(90.0f * Calc.DegToRad - angle, 360.0f * Calc.DegToRad);
 }
 
 public class MarioPlayer : Player
@@ -127,16 +137,9 @@ public class MarioPlayer : Player
 
     public override Vec3 Velocity => Mario != null ? Mario.Velocity.ToC64Vec3() : velocity;
 
-    // :screwms: moment
-    private static float Modulo(float a, float b)
-    {
-        return (a % b + b) % b;
-    }
-
     public override Vec2 Facing
     {
-        // C64 rotates counter-clock-wise and +Y is 0, SM64 rotates clock-wise and +X is 0
-        get => Calc.AngleToVector(90.0f * Calc.DegToRad - Modulo(Mario.FaceAngle, 360.0f * Calc.DegToRad));
+        get => Calc.AngleToVector(Mario.FaceAngle.ToC64Angle());
         set
         {
             if (facing == value)
@@ -144,7 +147,7 @@ public class MarioPlayer : Player
 
             facing = value;
             dirty = true;
-            Mario.FaceAngle = Modulo(90.0f * Calc.DegToRad - value.Angle(), 360.0f * Calc.DegToRad);
+            Mario.FaceAngle = value.Angle().ToSM64Angle();
         }
     }
 
@@ -325,6 +328,52 @@ public class MarioPlayer : Player
         {
             StateMachine.Update();
         }
+        
+        // Push out of NPCs
+        foreach (var actor in World.All<IHavePushout>())
+        {
+            // Reimplemented push_mario_out_of_object() from src/decomp/game/interaction.c
+            const float padding = 0.0f;
+            const float marioPushoutRadius = 37.0f * SM64_To_C64_Pos;
+            const float marioPushoutHeight = 160.0f * SM64_To_C64_Pos; // Ignores crouching, but that really doesnt matter here
+            
+            var it = (actor as IHavePushout)!;
+            if (it.PushoutRadius <= 0 || it.PushoutHeight <= 0)
+                continue;
+            if (Position.Z >= actor.Position.Z + it.PushoutHeight || actor.Position.Z >= Position.Z + marioPushoutHeight)
+                continue;
+
+            var diff = Position.XY() - actor.Position.XY();
+
+            float distance = diff.Length();
+            float minDistance = it.PushoutRadius + marioPushoutRadius + padding;
+            
+            if (distance > minDistance)
+                continue;
+            
+            Log.Info($"Pushout of {actor}: {distance} > {minDistance}");
+
+            float pushAngle = distance != 0.0f 
+                ? diff.Angle().ToC64Angle()
+                : Mario.FaceAngle;
+            
+            float newMarioX = actor.Position.X * C64_To_SM64_Pos + MathF.Sin(pushAngle) * minDistance * C64_To_SM64_Pos;
+            float newMarioZ = actor.Position.Y * C64_To_SM64_Pos + MathF.Cos(pushAngle) * minDistance * C64_To_SM64_Pos;
+            float marioY = Mario.Position.y;
+            
+            SM64SurfaceCollisionData* floor = null;
+            
+            SM64Context.FindWallCollision(ref newMarioX, ref marioY, ref newMarioZ, 60.0f, 50.0f);
+            SM64Context.FindFloor(newMarioX, marioY, newMarioZ, ref floor);
+            
+            if (floor != null)
+            {
+                //! Doesn't update Mario's referenced floor (allows oob death when
+                // an object pushes you into a steep slope while in a ground action)
+                Mario.Position = Mario.Position with { x = newMarioX, z = newMarioZ };
+            }
+        }
+
         
         if (!SuperMario64Mod.IsOddFrame && StateMachine.State != States.Cassette)
         {

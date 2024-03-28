@@ -47,12 +47,7 @@ public static class MeshGenerator
                 continue;
             
             if (solidMeshes.TryGetValue(solid, out var builder))
-            {
                 staticBuilder.Combine(builder);
-            } else
-            {
-                Log.Info($"builder not found: {solidMeshes.Count}");
-            }
             
             minX = Math.Min(minX, solid.WorldBounds.Min.X);
             maxX = Math.Max(maxX, solid.WorldBounds.Max.X);
