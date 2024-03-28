@@ -17,9 +17,9 @@ out vec3 v_world;
 
 void main(void)
 {
-    // In SM64 the coords are +Y up instead of +Z up
-    vec3 pos = a_position.xzy;
-    vec3 norm = a_normal.xzy;
+    // C64 is left-handed with +Z up, SM64 is right-handed with +Y up
+    vec3 pos = vec3(a_position.x, -a_position.z, a_position.y);
+    vec3 norm = vec3(a_normal.x, -a_normal.z, a_normal.y);
     
 	gl_Position = u_mvp * vec4(pos, 1.0);
 

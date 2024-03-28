@@ -34,7 +34,7 @@ public static class MeshGenerator
         var staticBuilder = new CollisionMeshBuilder();
 
         // Bounding box of all solids combined
-        float minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+        float minX = 0, maxX = 0, minY = 0, maxY = 0;
         
         // Gather all solids, even if they aren't part of the World yet
         var solids = world.All<Solid>().Cast<Solid>()
@@ -51,18 +51,19 @@ public static class MeshGenerator
             
             minX = Math.Min(minX, solid.WorldBounds.Min.X);
             maxX = Math.Max(maxX, solid.WorldBounds.Max.X);
-            minZ = Math.Min(minZ, solid.WorldBounds.Min.Y);
-            maxZ = Math.Max(maxZ, solid.WorldBounds.Max.Y);
+            minY = Math.Min(minY, solid.WorldBounds.Min.Y);
+            maxY = Math.Max(maxY, solid.WorldBounds.Max.Y);
         }
 
         // Add death plane
-        const int DeathPlaneInflate = (int)(100 * MarioPlayer.C64_To_SM64_Pos);
-        const int DeathPlaneOffset = (int)(1000 * MarioPlayer.C64_To_SM64_Pos);
-        staticBuilder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS, 
-            new SM64Vector3f(minX * MarioPlayer.C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * MarioPlayer.C64_To_SM64_Pos - DeathPlaneOffset, maxZ * MarioPlayer.C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(maxX * MarioPlayer.C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * MarioPlayer.C64_To_SM64_Pos - DeathPlaneOffset, maxZ * MarioPlayer.C64_To_SM64_Pos + DeathPlaneInflate),
-            new SM64Vector3f(minX * MarioPlayer.C64_To_SM64_Pos - DeathPlaneInflate, world.DeathPlane * MarioPlayer.C64_To_SM64_Pos - DeathPlaneOffset, minZ * MarioPlayer.C64_To_SM64_Pos - DeathPlaneInflate),
-            new SM64Vector3f(maxX * MarioPlayer.C64_To_SM64_Pos + DeathPlaneInflate, world.DeathPlane * MarioPlayer.C64_To_SM64_Pos - DeathPlaneOffset, minZ * MarioPlayer.C64_To_SM64_Pos - DeathPlaneInflate));
+        const int DeathPlaneInflate = 100;
+        const int DeathPlaneOffset = 1000;
+        staticBuilder.AddQuad(SM64SurfaceType.DEATH_PLANE, SM64TerrainType.GRASS,
+            new Vec3(maxX + DeathPlaneInflate, maxY + DeathPlaneInflate, world.DeathPlane - DeathPlaneOffset).ToSM64Vec3(),
+            new Vec3(minX - DeathPlaneInflate, maxY + DeathPlaneInflate, world.DeathPlane - DeathPlaneOffset).ToSM64Vec3(),
+            new Vec3(minX - DeathPlaneInflate, minY - DeathPlaneInflate, world.DeathPlane - DeathPlaneOffset).ToSM64Vec3(),
+            new Vec3(maxX + DeathPlaneInflate, minY - DeathPlaneInflate, world.DeathPlane - DeathPlaneOffset).ToSM64Vec3()
+        );
         
         staticBuilder.BuildStatic();
         
@@ -161,15 +162,15 @@ public static class MeshGenerator
                     {
                         builder.AddTriangle(SM64SurfaceType.DEFAULT, terrainType,
                             Vec3.Transform(face.Vertices[0], self.baseTransform).ToSM64Vec3(),
-                            Vec3.Transform(face.Vertices[2 + i], self.baseTransform).ToSM64Vec3(),
-                            Vec3.Transform(face.Vertices[1 + i], self.baseTransform).ToSM64Vec3());
+                            Vec3.Transform(face.Vertices[1 + i], self.baseTransform).ToSM64Vec3(),
+                            Vec3.Transform(face.Vertices[2 + i], self.baseTransform).ToSM64Vec3());
                     }
                     else
                     {
                         builder.AddTriangle(SM64SurfaceType.DEFAULT, terrainType,
                             Vec3.Transform(face.Vertices[0], transform).ToSM64Vec3(),
-                            Vec3.Transform(face.Vertices[2 + i], transform).ToSM64Vec3(),
-                            Vec3.Transform(face.Vertices[1 + i], transform).ToSM64Vec3());
+                            Vec3.Transform(face.Vertices[1 + i], transform).ToSM64Vec3(),
+                            Vec3.Transform(face.Vertices[2 + i], transform).ToSM64Vec3());
                     }
                 }
             }

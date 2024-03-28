@@ -92,9 +92,9 @@ public class CollisionMeshBuilder
         AddTriangle(
             surfaceType,
             terrainType,
-            vertex4,
             vertex3,
-            vertex2);
+            vertex4,
+            vertex1);
 
         return this;
     }

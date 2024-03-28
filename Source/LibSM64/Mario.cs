@@ -6,8 +6,8 @@ public class Mario
 {
     public struct GamepadState
     {
-        public Vec2 Stick;
-        public Vec2 CameraLook;
+        public SM64Vector2f Stick;
+        public SM64Vector2f CameraLook;
         public bool AButtonDown;
         public bool BButtonDown;
         public bool ZButtonDown;
@@ -44,10 +44,10 @@ public class Mario
             buttonA = (byte)(Gamepad.AButtonDown ? 1 : 0),
             buttonB = (byte)(Gamepad.BButtonDown ? 1 : 0),
             buttonZ = (byte)(Gamepad.ZButtonDown ? 1 : 0),
-            stickX = Gamepad.Stick.X,
-            stickY = Gamepad.Stick.Y,
-            camLookX = Gamepad.CameraLook.X,
-            camLookZ = Gamepad.CameraLook.Y,
+            stickX = Gamepad.Stick.x,
+            stickY = Gamepad.Stick.y,
+            camLookX = Gamepad.CameraLook.x,
+            camLookZ = Gamepad.CameraLook.y,
         };
         
         fixed (SM64Vector3f* pPos = Mesh.PositionsBuffer)
