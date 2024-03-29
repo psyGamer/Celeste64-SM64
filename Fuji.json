@@ -3,5 +3,7 @@
   "Name": "Super Mario 64",
   "Version": "1.0.0",
   "ModAuthor": "psyGamer",
-  "Description": "Lets you play as Mario from Super Mario 64!"
+  "Description": "Lets you play as Mario from Super Mario 64!",
+  
+  "FujiRequiredVersion": "0.6.0"
 }

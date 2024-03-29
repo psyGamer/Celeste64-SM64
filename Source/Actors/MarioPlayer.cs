@@ -237,7 +237,7 @@ public class MarioPlayer : Player
         
         // Rotate Camera
         {
-            var invertX = Save.Instance.InvertCamera == Save.InvertCameraOptions.X || Save.Instance.InvertCamera == Save.InvertCameraOptions.Both;
+            var invertX = Settings.InvertCamera == InvertCameraOptions.X || Settings.InvertCamera == InvertCameraOptions.Both;
             var rot = new Vec2(CameraTargetForward.X, CameraTargetForward.Y).Angle();
             rot -= Controls.Camera.Value.X * Time.Delta * 4 * (invertX ? -1 : 1);
 
@@ -248,7 +248,7 @@ public class MarioPlayer : Player
         // Move Camera in / out
         if (Controls.Camera.Value.Y != 0)
         {
-            var invertY = Save.Instance.InvertCamera == Save.InvertCameraOptions.Y || Save.Instance.InvertCamera == Save.InvertCameraOptions.Both;
+            var invertY = Settings.InvertCamera == InvertCameraOptions.Y || Settings.InvertCamera == InvertCameraOptions.Both;
             CameraTargetDistance += Controls.Camera.Value.Y * Time.Delta * (invertY ? -1 : 1);
             CameraTargetDistance = Calc.Clamp(CameraTargetDistance, 0, 1);
         }
