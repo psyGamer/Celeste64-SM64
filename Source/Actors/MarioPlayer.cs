@@ -216,7 +216,7 @@ public class MarioPlayer : Player
                 if (MeshGenerator.BreakableSolids.TryGetValue(wall->objId, out var solid))
                 {
                     // They have been checked to be an IDashTrigger when added to the dict
-                    ((IDashTrigger)solid).HandleDash(handVelocity); 
+                    ((IDashTrigger)solid).HandleDash(handVelocity);
                 }
             }
             
@@ -234,6 +234,17 @@ public class MarioPlayer : Player
                     SM64Context.PlaySound(SM64Sound.ACTION_HIT_2, Mario.Position);
                 }
             }
+        }
+        
+        // Not directly taken from libsm64
+        if (Mario.Velocity.y < 0.0f && Mario.Action is SM64Action.GROUND_POUND or SM64Action.GROUND_POUND_LAND &&
+            // We don't use libsm64 to detect floors since its easy not to do so
+            World.SolidRayCast(Position, -Vec3.UnitZ, 78.0f * SM64Conversion.SM64_To_C64, out var hit) &&
+            hit.Actor is IDashTrigger dashTrigger)
+        {
+            // Values taken from interact_breakable() from libsm64 src/decomp/game/interaction.c
+            Position = Position with { Y = hit.Point.Y };
+            dashTrigger.HandleDash(Velocity);
         }
 
         Mario.Gamepad.Stick.x = -Controls.Move.Value.X;
