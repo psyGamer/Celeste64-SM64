@@ -198,7 +198,6 @@ public class MarioPlayer : Player
             SM64Context.PlaySound(SM64Sound.MARIO_SO_LONGA_BOWSER, Mario.Position);
         
         // Reimplemented check_kick_or_punch_wall() from libsm64 src/decomp/game/interaction.c
-        // We don't set any state (since libsm64 already does that) but only check for collisions with breakable blocks
         if (Mario.Flags.Has(SM64MarioFlags.PUNCHING | SM64MarioFlags.KICKING | SM64MarioFlags.TRIPPING)) {
             var detector = new SM64Vector3f(
                 Mario.Position.x + 50.0f * MathF.Sin(Mario.FaceAngle),
@@ -218,6 +217,21 @@ public class MarioPlayer : Player
                 {
                     // They have been checked to be an IDashTrigger when added to the dict
                     ((IDashTrigger)solid).HandleDash(handVelocity); 
+                }
+            }
+            
+            if (walls.Length != 0)
+            {
+                if (Mario.Action != SM64Action.MOVE_PUNCHING || Mario.ForwardVelocity >= 0.0f) {
+                    if (Mario.Action == SM64Action.PUNCHING) {
+                        Mario.Action = SM64Action.MOVE_PUNCHING;
+                    }
+
+                    Mario.ForwardVelocity = -48.0f;
+                    SM64Context.PlaySound(SM64Sound.ACTION_HIT_2, Mario.Position);
+                } else if (((uint)Mario.Action & (uint)SM64Action.FLAG_AIR) != 0) {
+                    Mario.ForwardVelocity = -16.0f;
+                    SM64Context.PlaySound(SM64Sound.ACTION_HIT_2, Mario.Position);
                 }
             }
         }
