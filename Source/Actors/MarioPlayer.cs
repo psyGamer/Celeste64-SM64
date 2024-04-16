@@ -3,23 +3,33 @@ using static LibSM64.Native;
 
 namespace Celeste64.Mod.SuperMario64;
 
-public static class SM64ConversionExtensions
+public static class SM64Conversion
 {
+    /// <summary>
+    /// A single unit in SM64 and C64 are different sizes.
+    /// These constants transform a SM64 unit into a C64 one or vice versa.
+    /// </summary>
+    public const float SM64_To_C64 = 0.075f;
+    public const float C64_To_SM64 = 1.0f / SM64_To_C64;
+    
+    public const float SM64_To_C64_Vel = SM64_To_C64 * 30.0f;
+    public const float C64_To_SM64_Vel = C64_To_SM64 / 30.0f;
+    
     // C64 is left-handed with +Z up, SM64 is right-handed with +Y up
     public static Vec2 AsC64Vec2(this SM64Vector2f vec) => new(vec.x, vec.y);
     public static Vec3 AsC64Vec3(this SM64Vector3f vec) => new(vec.x, -vec.z, vec.y);
     public static SM64Vector2f AsSM64Vec2(this Vec2 vec) => new(vec.X, -vec.Y);
     public static SM64Vector3f AsSM64Vec3(this Vec3 vec) => new(vec.X, vec.Z, -vec.Y);
     
-    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * MarioPlayer.SM64_To_C64, vec.y * MarioPlayer.SM64_To_C64);
-    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * MarioPlayer.SM64_To_C64, -vec.z * MarioPlayer.SM64_To_C64, vec.y * MarioPlayer.SM64_To_C64); 
+    public static Vec2 ToC64Vec2(this SM64Vector2f vec) => new(vec.x * SM64_To_C64, vec.y * SM64_To_C64);
+    public static Vec3 ToC64Vec3(this SM64Vector3f vec) => new(vec.x * SM64_To_C64, -vec.z * SM64_To_C64, vec.y * SM64_To_C64); 
     
-    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * MarioPlayer.C64_To_SM64, vec.Y * MarioPlayer.C64_To_SM64);
-    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * MarioPlayer.C64_To_SM64, vec.Z * MarioPlayer.C64_To_SM64, -vec.Y * MarioPlayer.C64_To_SM64);
+    public static SM64Vector2f ToSM64Vec2(this Vec2 vec) => new(vec.X * C64_To_SM64, vec.Y * C64_To_SM64);
+    public static SM64Vector3f ToSM64Vec3(this Vec3 vec) => new(vec.X * C64_To_SM64, vec.Z * C64_To_SM64, -vec.Y * C64_To_SM64);
     
     // C64 uses px/s, SM64 uses px/f (30 FPS)
-    public static Vec3 ToC64VelocityVec3(this SM64Vector3f vec) => new(vec.x * MarioPlayer.SM64_To_C64_Vel, -vec.z * MarioPlayer.SM64_To_C64_Vel, vec.y * MarioPlayer.SM64_To_C64_Vel);
-    public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * MarioPlayer.C64_To_SM64_Vel, vec.Z * MarioPlayer.C64_To_SM64_Vel, -vec.Y * MarioPlayer.C64_To_SM64_Vel);
+    public static Vec3 ToC64VelocityVec3(this SM64Vector3f vec) => new(vec.x * SM64_To_C64_Vel, -vec.z * SM64_To_C64_Vel, vec.y * SM64_To_C64_Vel);
+    public static SM64Vector3f ToSM64VelocityVec3(this Vec3 vec) => new(vec.X * C64_To_SM64_Vel, vec.Z * C64_To_SM64_Vel, -vec.Y * C64_To_SM64_Vel);
     
     // :screwms: moment
     private static float Modulo(float a, float b)
@@ -34,16 +44,6 @@ public static class SM64ConversionExtensions
 
 public class MarioPlayer : Player
 {
-    /// <summary>
-    /// A single unit in SM64 and C64 are different sizes.
-    /// These constants transform a SM64 unit into a C64 one or vice versa.
-    /// </summary>
-    public const float SM64_To_C64 = 0.075f;
-    public const float C64_To_SM64 = 1.0f / SM64_To_C64;
-    
-    public const float SM64_To_C64_Vel = SM64_To_C64 * 30.0f;
-    public const float C64_To_SM64_Vel = C64_To_SM64 / 30.0f;
-    
     private class MarioModel : Model
     {
         private readonly Mario mario;
@@ -86,7 +86,7 @@ public class MarioPlayer : Player
             }
 
             material.Model = Matrix.CreateTranslation(-mario.Position.AsC64Vec3()) *
-                             Matrix.CreateScale(SM64_To_C64) *
+                             Matrix.CreateScale(SM64Conversion.SM64_To_C64) *
                              Matrix.CreateTranslation(mario.Position.ToC64Vec3());
             material.MVP = material.Model * state.Camera.ViewProjection;
             
@@ -325,8 +325,8 @@ public class MarioPlayer : Player
         {
             // Reimplemented push_mario_out_of_object() from src/decomp/game/interaction.c
             const float padding = 0.0f;
-            const float marioPushoutRadius = 37.0f * SM64_To_C64;
-            const float marioPushoutHeight = 160.0f * SM64_To_C64; // Ignores crouching, but that really doesnt matter here
+            const float marioPushoutRadius = 37.0f * SM64Conversion.SM64_To_C64;
+            const float marioPushoutHeight = 160.0f * SM64Conversion.SM64_To_C64; // Ignores crouching, but that really doesnt matter here
             
             var it = (actor as IHavePushout)!;
             if (it.PushoutRadius <= 0 || it.PushoutHeight <= 0)
@@ -348,8 +348,8 @@ public class MarioPlayer : Player
             
             var objPos = actor.Position.ToSM64Vec3();
             
-            float newMarioX = objPos.x + MathF.Sin(pushAngle) * minDistance * C64_To_SM64;
-            float newMarioZ = objPos.z + MathF.Cos(pushAngle) * minDistance * C64_To_SM64;
+            float newMarioX = objPos.x + MathF.Sin(pushAngle) * minDistance * SM64Conversion.C64_To_SM64;
+            float newMarioZ = objPos.z + MathF.Cos(pushAngle) * minDistance * SM64Conversion.C64_To_SM64;
             float marioY = Mario.Position.y;
             
             SM64SurfaceCollisionData* floor = null;
@@ -512,7 +512,7 @@ public class MarioPlayer : Player
     public override void Spring(Spring spring)
     {
         Mario.Action = SM64Action.TWIRLING;
-        Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * C64_To_SM64_Vel * 1.5f }; // Boost springs a bit for a better feel
+        Mario.Velocity = Mario.Velocity with { y = SpringJumpSpeed * SM64Conversion.C64_To_SM64_Vel * 1.5f }; // Boost springs a bit for a better feel
         SM64Context.PlaySound(SM64Sound.MARIO_TWIRL_BOUNCE, Mario.Position);
     }
 
