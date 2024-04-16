@@ -14,8 +14,7 @@ public static class MeshGenerator
     {
         modelMeshes.Clear();
         solidMeshes.Clear();
-        //HookManager.Instance.RegisterILHook(new ILHook(typeof(Map).GetMethod(nameof(Map.GenerateModel), BindingFlags.NonPublic | BindingFlags.Instance)!, IL_Map_GenerateModel));
-        HookManager.Instance.RegisterHook(new Hook(typeof(Map).GetMethod(nameof(Map.GenerateSolid), BindingFlags.NonPublic | BindingFlags.Instance)!, On_Map_GenerateSolid));
+        SuperMario64Mod.Instance.RegisterHook(new Hook(typeof(Map).GetMethod(nameof(Map.GenerateSolid), BindingFlags.NonPublic | BindingFlags.Instance)!, On_Map_GenerateSolid));
     }
     
     private static readonly Dictionary<SimpleModel, CollisionMeshBuilder> modelMeshes = [];
