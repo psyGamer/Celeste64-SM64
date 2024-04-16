@@ -215,6 +215,8 @@ public class Native
     public static extern void sm64_mario_extend_cap(int marioId, ushort capTime);
     [DllImport(SM64_LIB)]
     public static extern bool sm64_mario_attack(int marioId, float x, float y, float z, float hitboxHeight);
+    [DllImport(SM64_LIB)]
+    public static extern bool sm64_mario_climb_pole(int marioId, float poleX, float poleY, float poleZ, float poleHeight, float poleDownOffset);
     
     [DllImport(SM64_LIB)]
     public static extern uint sm64_surface_object_create(ref SM64SurfaceObject surfaceObject);
@@ -448,6 +450,8 @@ public class Native
     
     public enum SM64Action : uint
     {
+        ID_MASK = 0x000001FF,
+
         GROUP_MASK       = 0x000001C0,
         GROUP_STATIONARY = 0u << 6,
         GROUP_MOVING     = 1u << 6,

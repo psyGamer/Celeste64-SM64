@@ -184,4 +184,6 @@ public class Mario
     public void Heal(byte healCounter) => sm64_mario_heal(id, healCounter);
     public void Damage(uint damage, SM64IntSubtype subtype, float x, float y, float z) => sm64_mario_take_damage(id, damage, (uint)subtype, x, y, z);
     public void Damage(uint damage, SM64IntSubtype subtype, SM64Vector3f pos) => sm64_mario_take_damage(id, damage, (uint)subtype, pos.x, pos.y, pos.z);
+    
+    public void ClimbPole(SM64Vector3f polePos, float poleHeight, float poleDownOffset = 0.0f) => sm64_mario_climb_pole(id, polePos.x, polePos.y, polePos.z, poleHeight, poleDownOffset);
 }

@@ -197,7 +197,7 @@ public class MarioPlayer : Player
         if (Input.Keyboard.Pressed(Keys.J))
             SM64Context.PlaySound(SM64Sound.MARIO_SO_LONGA_BOWSER, Mario.Position);
         
-        // Reimplemented check_kick_or_punch_wall() from libsm64 src/decomp/game/interaction.c
+        // Reimplemented check_kick_or_punch_wall() from src/decomp/game/interaction.c
         if (Mario.Flags.Has(SM64MarioFlags.PUNCHING | SM64MarioFlags.KICKING | SM64MarioFlags.TRIPPING)) {
             var detector = new SM64Vector3f(
                 Mario.Position.x + 50.0f * MathF.Sin(Mario.FaceAngle),
@@ -242,7 +242,7 @@ public class MarioPlayer : Player
             World.SolidRayCast(Position, -Vec3.UnitZ, 78.0f * SM64Conversion.SM64_To_C64, out var hit) &&
             hit.Actor is IDashTrigger dashTrigger)
         {
-            // Values taken from interact_breakable() from libsm64 src/decomp/game/interaction.c
+            // Values taken from interact_breakable() from src/decomp/game/interaction.c
             Position = Position with { Y = hit.Point.Y };
             dashTrigger.HandleDash(Velocity);
         }
@@ -366,6 +366,19 @@ public class MarioPlayer : Player
             
             if (distance > minDistance)
                 continue;
+            
+            // Special case for tree climbing
+            if (actor is StaticProp prop && prop.Model.Template == Assets.Models["tree1"])
+            {
+                uint actionId = (uint)Mario.Action & (uint)SM64Action.ID_MASK;
+                if (actionId >= 0x080 && actionId < 0x0A0)
+                {
+                    // Apply hardcoded offset, since the tree hitbox doesn't extend to the top
+                    Mario.ClimbPole(prop.Position.ToSM64Vec3(), (it.PushoutHeight + 9.5f) * SM64Conversion.C64_To_SM64);
+                    continue;
+                }
+                
+            }
 
             float pushAngle = distance != 0.0f 
                 ? diff.Angle().ToSM64Angle()
