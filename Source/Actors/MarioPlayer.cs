@@ -67,6 +67,9 @@ public class MarioPlayer : Player
             if (material.Shader != null && material.Shader.Has("u_texture_sampler"))
                 material.Set("u_texture_sampler", new TextureSampler(TextureFilter.Linear, TextureWrap.ClampToEdge, TextureWrap.ClampToEdge));
             
+            if (material.Shader?.Has("u_silhouette_color") ?? false)
+                material.Set("u_silhouette_color", new Color(0xcf0000));
+            
             Flags = ModelFlags.Default;
         }
         
